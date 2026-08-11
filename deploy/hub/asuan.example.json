@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "name": "hub",
+  "syncthing": {
+    "bin": "/usr/bin/syncthing",
+    "data_dir": "/var/syncthing/config",
+    "gui_bind": "127.0.0.1:8384",
+    "gui_api_key": "改成一个随机的长字符串，与各端保持一致即可"
+  },
+  "web": {
+    "bind": "0.0.0.0:18084"
+  },
+  "stealth": {
+    "disable_upnp": true,
+    "disable_local_discovery": true,
+    "disable_global_discovery": true,
+    "disable_relay": true,
+    "disable_nat": true,
+    "tcp_port": 44312
+  },
+  "peers": [
+    {
+      "name": "台式机",
+      "device_id": "AAAA-AAAA-...-AAAAA",
+      "address": "192.168.1.20:44312",
+      "mac": ""
+    }
+  ],
+  "folders": [
+    {
+      "id": "docs",
+      "label": "文档",
+      "path": "/sync/docs",
+      "policy": "sync"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# internal / not for public repo
+PROGRESS.md
+*.local.json
+secrets/
+.env
+_legacy_history/
+
+# build artifacts
+bin/
+dist/
+*.exe
+*.test
+
+# syncthing sidecar
+syncthing-data/
+syncthing-config/

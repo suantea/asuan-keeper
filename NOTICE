@@ -1,0 +1,21 @@
+Third-Party Notices
+===================
+
+asuan 在运行时会内嵌调用 Syncthing 作为同步内核（sidecar 进程）。
+
+Syncthing
+---------
+- Project:  Syncthing
+- Homepage: https://syncthing.net/
+- Source:   https://github.com/syncthing/syncthing
+- License:  Mozilla Public License 2.0 (MPL-2.0)
+- Version:  详见 `asuan engine` 输出（当前已验证: v2.1.3）
+
+使用方式：asuan 以独立进程方式启动官方 Syncthing 二进制，通过网络 REST API 与其对话，
+不对其源代码进行修改。按 MPL-2.0 要求，在随附清单（含依赖的官方发行包）中保留上述来源
+与许可证信息；Syncthing 的完整许可证文本见官方发行包内 LICENSE.txt。
+
+发布物（P0/P1 各版本）中如需自带 Syncthing 二进制，请一并携带官方包内的
+LICENSE.txt、AUTHORS.txt、README.txt，以满足 MPL-2.0 分发要求。
+
+asuan 自身代码的许可证声明见 README「许可与声明」一节。

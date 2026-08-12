@@ -2,7 +2,8 @@
 # 基于官方 syncthing 镜像，叠加我们的 asuan 管理程序，统一配置路径。
 FROM golang:1.26-alpine AS build
 WORKDIR /src
-COPY go.mod ./
+ENV GOPROXY=https://goproxy.cn,direct
+COPY go.mod go.sum ./
 COPY internal ./internal
 COPY cmd ./cmd
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/asuan ./cmd/asuan

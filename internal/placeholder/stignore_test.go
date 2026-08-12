@@ -73,3 +73,58 @@ func TestIsReleased(t *testing.T) {
 		t.Fatal("移除释放规则后不应视为已释放")
 	}
 }
+
+func TestPathRules(t *testing.T) {
+	if got := PathRules("sub/file.txt", false); len(got) != 1 || got[0] != "(?d)/sub/file.txt" {
+		t.Fatalf("文件规则不符: %v", got)
+	}
+	if got := PathRules("sub/dir", true); len(got) != 2 || got[0] != "(?d)/sub/dir" || got[1] != "(?d)/sub/dir/**" {
+		t.Fatalf("目录规则不符: %v", got)
+	}
+	if got := PathRules("", false); got != nil {
+		t.Fatalf("空路径应返回 nil: %v", got)
+	}
+	// 反斜杠与多余 ./ 规范化
+	if got := PathRules("./sub\\dir", true); got[0] != "(?d)/sub/dir" {
+		t.Fatalf("路径规范化不符: %v", got)
+	}
+}
+
+func TestAddRemoveRules(t *testing.T) {
+	dir := t.TempDir()
+	if err := AddRules(dir, []string{"(?d)/a.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := AddRules(dir, []string{"(?d)/a.txt", "(?d)/b/"}); err != nil {
+		t.Fatal(err)
+	}
+	rules, _ := ReadStIgnore(dir)
+	if len(rules) != 2 {
+		t.Fatalf("去重后规则数不符: %v", rules)
+	}
+	// IsPathReleased 单文件命中
+	if rel, _ := IsPathReleased(dir, "a.txt", false); !rel {
+		t.Fatal("a.txt 应视为已释放")
+	}
+	if rel, _ := IsPathReleased(dir, "b", true); !rel {
+		t.Fatal("b 目录应视为已释放")
+	}
+	if rel, _ := IsPathReleased(dir, "c.txt", false); rel {
+		t.Fatal("c.txt 不应视为已释放")
+	}
+	// 移除后不再命中
+	if err := RemoveRules(dir, []string{"(?d)/a.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	if rel, _ := IsPathReleased(dir, "a.txt", false); rel {
+		t.Fatal("移除后 a.txt 不应视为已释放")
+	}
+	// ReleasedPaths 列出单路径（不含文件夹级）
+	if err := AddRules(dir, []string{ReleaseRule}); err != nil {
+		t.Fatal(err)
+	}
+	paths, _ := ReleasedPaths(dir)
+	if len(paths) != 1 || paths[0] != "b/" {
+		t.Fatalf("ReleasedPaths 不符: %v", paths)
+	}
+}

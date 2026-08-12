@@ -9,8 +9,8 @@
 //	asuan config         打印当前配置
 //	asuan engine         查看引擎版本对照（agent 更新说明）
 //	asuan engine-update  更新引擎（可选版本号，默认最新已验证版本）
-//	asuan release <folder>  释放文件夹（删本地实体不传播，对端保留）
-//	asuan hydrate <folder>  水合文件夹（从对端重新拉回内容）
+//	asuan release <folder> [relpath]  释放文件夹或单路径（删本地实体不传播，对端保留）
+//	asuan hydrate <folder> [relpath]  水合文件夹或单路径（从对端重新拉回内容）
 package main
 
 import (
@@ -167,8 +167,9 @@ func cmdRun(configPath string) error {
 func startPlaceholderMount(cfg *config.Config, m *syncthing.Manager) error {
 	lister := placeholder.NewReleaseLister(cfg, m)
 	ph := placeholder.NewPlaceholderFS(lister, "", func(rel string) error {
-		// 打开占位文件 → 水合对应文件夹（文件夹级）。
-		return placeholder.Hydrate(cfg, m, placeholder.FolderIDOf(lister, rel), 10*time.Minute)
+		// 打开占位文件 → 只水合该文件/子路径（单文件级；空子路径=文件夹级）。
+		folderID, sub := lister.SplitVirt(rel)
+		return placeholder.Hydrate(cfg, m, folderID, sub, 10*time.Minute)
 	}).SetResolver(lister.Resolve)
 	go func() {
 		if err := ph.Mount(cfg.Placeholder.Mount); err != nil {
@@ -252,34 +253,52 @@ func cmdEngineUpdate(configPath string, args []string) error {
 	return nil
 }
 
-// cmdRelease 释放文件夹：删本地实体不传播，对端内容保留。
+// cmdRelease 释放文件夹或单路径：删本地实体不传播，对端内容保留。
+// relpath 为空=文件夹级；非空=单文件/单目录级。
 func cmdRelease(configPath string, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("用法: asuan release <folder-id>")
+		return fmt.Errorf("用法: asuan release <folder-id> [relpath]")
 	}
 	cfg, _ := loadOrDie(configPath)
 	m := syncthing.New(cfg, exeDir())
 	folderID := args[1]
-	if err := placeholder.Release(cfg, m, folderID); err != nil {
+	relPath := ""
+	if len(args) > 2 {
+		relPath = args[2]
+	}
+	if err := placeholder.Release(cfg, m, folderID, relPath); err != nil {
 		return err
 	}
-	fmt.Printf("已释放文件夹 %s：本地实体已删除，对端内容保留。\n", folderID)
-	fmt.Println("需要恢复时运行：asuan hydrate " + folderID)
+	if relPath == "" {
+		fmt.Printf("已释放文件夹 %s：本地实体已删除，对端内容保留。\n", folderID)
+	} else {
+		fmt.Printf("已释放 %s 的 %s：本地实体已删除，对端内容保留。\n", folderID, relPath)
+	}
+	fmt.Println("需要恢复时运行：asuan hydrate " + folderID + " " + relPath)
 	return nil
 }
 
-// cmdHydrate 水合文件夹：从对端重新拉回内容。
+// cmdHydrate 水合文件夹或单路径：从对端重新拉回内容。
+// relpath 为空=文件夹级；非空=单文件/单目录级。
 func cmdHydrate(configPath string, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("用法: asuan hydrate <folder-id>")
+		return fmt.Errorf("用法: asuan hydrate <folder-id> [relpath]")
 	}
 	cfg, _ := loadOrDie(configPath)
 	m := syncthing.New(cfg, exeDir())
 	folderID := args[1]
-	if err := placeholder.Hydrate(cfg, m, folderID, 10*time.Minute); err != nil {
+	relPath := ""
+	if len(args) > 2 {
+		relPath = args[2]
+	}
+	if err := placeholder.Hydrate(cfg, m, folderID, relPath, 10*time.Minute); err != nil {
 		return err
 	}
-	fmt.Printf("已水合文件夹 %s：内容已从对端拉回。\n", folderID)
+	if relPath == "" {
+		fmt.Printf("已水合文件夹 %s：内容已从对端拉回。\n", folderID)
+	} else {
+		fmt.Printf("已水合 %s 的 %s：内容已从对端拉回。\n", folderID, relPath)
+	}
 	return nil
 }
 

@@ -165,8 +165,11 @@ async function status(){
     const pct=total>0?Math.round(100*local/total):(Number(f.globalFiles)>0?100:0);
     const done=pct>=100;
     const relBtn=f.released
-      ?`<button class="small" onclick="act('hydrate',${JSON.stringify(f.id)})" title="从对端重新拉回内容">水合</button>`
+      ?`<button class="small" onclick="act('hydrate',${JSON.stringify(f.id)})" title="从对端重新拉回全部内容">水合</button>`
       :`<button class="small" onclick="act('release',${JSON.stringify(f.id)})" title="删除本地实体不传播，对端保留">释放</button>`;
+    const pathBtn=f.released
+      ?`<button class="small" onclick="actPath('hydrate',${JSON.stringify(f.id)})" title="按相对路径水合（如 sub/file.txt）">按路径水合</button>`
+      :`<button class="small" onclick="actPath('release',${JSON.stringify(f.id)})" title="按相对路径释放（如 sub/file.txt，仅删该路径）">按路径释放</button>`;
     const relPill=f.released?` <span class="pill waiting" title="已释放：本地实体已删，对端保留">已释放</span>`:'';
     return `<tr>
       <td>${esc(f.label||f.id||'')}${relPill}</td>
@@ -175,7 +178,7 @@ async function status(){
       <td class="num">${fmt(total)} · ${size(f.globalBytes)}</td>
       <td class="num">${fmt(local)} · ${size(f.localBytes)}</td>
       <td><span class="bar ${done?'done':''}"><span style="width:${pct}%"></span></span> <span class="num" style="font-size:12px;color:var(--muted)">${pct}%${need>0?' · '+fmt(need)+' 待':''}</span></td>
-      <td>${relBtn}</td>
+      <td>${relBtn} ${pathBtn}</td>
     </tr>`;
   }).join(''):`<tr><td colspan="7" style="color:var(--muted)">尚无同步文件夹，请在配置中添加 folders</td></tr>`;
 
@@ -222,6 +225,18 @@ async function act(kind,folder){
   const verb=kind==='release'?'释放':'水合';
   if(!confirm(`确定${verb}文件夹「${folder}」？\n\n释放：删除本地实体不传播，对端内容保留，本地空间释放。\n水合：从对端重新拉回全部内容。`)) return;
   const d=await post('/api/'+kind,JSON.stringify({folder}));
+  if(d.ok){ toast(`${verb}成功`, 'ok'); setTimeout(status,1500); }
+  else toast(`${verb}失败：${d.error||''}`,'err');
+}
+
+// 按相对路径释放/水合单文件或子目录（空路径=整个文件夹）。
+async function actPath(kind,folder){
+  const verb=kind==='release'?'释放':'水合';
+  const rel=prompt(`输入要${verb}的相对路径（如 sub/file.txt；目录名也可以；留空=整个文件夹）：`);
+  if(rel===null) return; // 用户取消
+  const p=rel.trim();
+  if(p && !confirm(`确定按路径${verb}「${p}」？\n\n释放：仅删除该路径本地实体，不传播，对端保留。\n水合：从对端重新拉回该路径。`)) return;
+  const d=await post('/api/'+kind,JSON.stringify({folder,relpath:p}));
   if(d.ok){ toast(`${verb}成功`, 'ok'); setTimeout(status,1500); }
   else toast(`${verb}失败：${d.error||''}`,'err');
 }

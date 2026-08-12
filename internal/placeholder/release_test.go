@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestClearLocal(t *testing.T) {
@@ -37,5 +38,26 @@ func TestClearLocal(t *testing.T) {
 func TestClearLocalMissingDir(t *testing.T) {
 	if err := clearLocal(filepath.Join(t.TempDir(), "nope")); err != nil {
 		t.Fatalf("目录不存在应无错误: %v", err)
+	}
+}
+
+func TestWaitPathExists(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "水合.txt")
+	// 文件尚不存在：短超时应报错
+	if err := waitPathExists(target, 500*time.Millisecond); err == nil {
+		t.Fatal("不存在的路径应超时返回错误")
+	}
+	// 延迟创建后应等到
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		_ = os.WriteFile(target, []byte("x"), 0o644)
+	}()
+	if err := waitPathExists(target, 5*time.Second); err != nil {
+		t.Fatalf("应等到文件出现: %v", err)
+	}
+	// 已存在立即返回
+	if err := waitPathExists(target, time.Second); err != nil {
+		t.Fatalf("已存在的路径应立即返回: %v", err)
 	}
 }

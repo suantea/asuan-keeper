@@ -141,27 +141,28 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) {
 	stj(w, map[string]any{"ok": true})
 }
 
-// folderIDFromBody 解析请求体中的 {folder: id}。
-func folderIDFromBody(r *http.Request) (string, error) {
+// folderIDFromBody 解析请求体中的 {folder: id, relpath?: path}。
+func folderIDFromBody(r *http.Request) (string, string, error) {
 	var b struct {
-		Folder string `json:"folder"`
+		Folder  string `json:"folder"`
+		RelPath string `json:"relpath"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-		return "", err
+		return "", "", err
 	}
 	if b.Folder == "" {
-		return "", fmt.Errorf("缺少 folder 参数")
+		return "", "", fmt.Errorf("缺少 folder 参数")
 	}
-	return b.Folder, nil
+	return b.Folder, b.RelPath, nil
 }
 
-// handleRelease 释放文件夹：删本地实体不传播（占位符），对端保留。
+// handleRelease 释放文件夹或单路径：删本地实体不传播（占位符），对端保留。
 func (s *Server) handleRelease(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	folderID, err := folderIDFromBody(r)
+	folderID, relPath, err := folderIDFromBody(r)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
@@ -169,20 +170,20 @@ func (s *Server) handleRelease(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	cfg, mgr := s.cfg, s.mgr
 	s.mu.RUnlock()
-	if err := placeholder.Release(cfg, mgr, folderID); err != nil {
+	if err := placeholder.Release(cfg, mgr, folderID, relPath); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 	stj(w, map[string]any{"ok": true})
 }
 
-// handleHydrate 水合文件夹：移除释放规则，从对端重新拉回内容。
+// handleHydrate 水合文件夹或单路径：移除释放规则，从对端重新拉回内容。
 func (s *Server) handleHydrate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	folderID, err := folderIDFromBody(r)
+	folderID, relPath, err := folderIDFromBody(r)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
@@ -190,7 +191,7 @@ func (s *Server) handleHydrate(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	cfg, mgr := s.cfg, s.mgr
 	s.mu.RUnlock()
-	if err := placeholder.Hydrate(cfg, mgr, folderID, 10*time.Minute); err != nil {
+	if err := placeholder.Hydrate(cfg, mgr, folderID, relPath, 10*time.Minute); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}

@@ -90,6 +90,21 @@ func FolderIDOf(l *ReleaseLister, relPath string) string {
 	return f.ID
 }
 
+// SplitVirt 把虚拟层相对路径拆成 (folderID, 文件夹内相对路径)。
+// 首段是文件夹 label/id，其后是文件夹内子路径（可能为空）。
+func (l *ReleaseLister) SplitVirt(virtRel string) (folderID, subRel string) {
+	parts := strings.SplitN(virtRel, "/", 2)
+	f, err := l.folderByLabel(parts[0])
+	if err != nil {
+		return parts[0], ""
+	}
+	sub := ""
+	if len(parts) > 1 {
+		sub = parts[1]
+	}
+	return f.ID, sub
+}
+
 // Resolve 把虚拟层相对路径（首段为文件夹 label/id）映射为本地真实绝对路径，
 // 供 PlaceholderFS.Read 从水合后的本地实体读取。
 func (l *ReleaseLister) Resolve(virtRel string) (string, error) {

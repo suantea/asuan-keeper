@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"atomgit.com/suantea/asuan-keeper/internal/config"
 	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
 )
 
-// Release 释放文件夹：仅删本地实体不传播。
+// Release 释放文件夹或单路径：仅删本地实体不传播。
 //
-// 顺序关键：先写入 "(?d)*" 忽略规则，再删除本地实体，最后触发重扫——
-// 引擎扫描时把删除视为"被忽略的删除"（(?d) 语义），不会传播到对端，
-// 本地空间释放而对端内容保留。
-func Release(cfg *config.Config, m *syncthing.Manager, folderID string) error {
+// relPath 为空 = 文件夹级：写入 "(?d)*" 规则并清空本地实体。
+// relPath 非空 = 单文件/单目录级：写入对应 "(?d)/path"（目录含 /path/**）
+// 规则，只删除该路径的本地实体。
+//
+// 顺序关键：先写忽略规则，再删除本地实体，最后触发重扫——引擎扫描时
+// 把删除视为"被忽略的删除"（(?d) 语义），不会传播到对端，本地空间释放
+// 而对端内容保留。
+func Release(cfg *config.Config, m *syncthing.Manager, folderID, relPath string) error {
 	f, err := findFolder(cfg, folderID)
 	if err != nil {
 		return err
@@ -23,39 +28,74 @@ func Release(cfg *config.Config, m *syncthing.Manager, folderID string) error {
 	if f.Policy != config.PolicySync {
 		return fmt.Errorf("文件夹 %q 策略为 %s，仅 sync 策略可释放", f.ID, f.Policy)
 	}
-	if err := WriteStIgnore(f.Path, []string{ReleaseRule}); err != nil {
-		return fmt.Errorf("写入 .stignore 失败: %w", err)
-	}
-	if err := clearLocal(f.Path); err != nil {
-		return fmt.Errorf("删除本地实体失败: %w", err)
+	relPath = strings.Trim(cleanRel(relPath), "/")
+	if relPath == "" {
+		if err := WriteStIgnore(f.Path, []string{ReleaseRule}); err != nil {
+			return fmt.Errorf("写入 .stignore 失败: %w", err)
+		}
+		if err := clearLocal(f.Path); err != nil {
+			return fmt.Errorf("删除本地实体失败: %w", err)
+		}
+	} else {
+		// 单路径：本地若存在则按实际类型生成规则，否则同时生成
+		// 文件与目录变体（保守），避免释放目录时漏掉 /path/**。
+		isDir := false
+		if fi, err := os.Stat(filepath.Join(f.Path, filepath.FromSlash(relPath))); err == nil {
+			isDir = fi.IsDir()
+		}
+		rules := PathRules(relPath, isDir)
+		if err := AddRules(f.Path, rules); err != nil {
+			return fmt.Errorf("写入 .stignore 失败: %w", err)
+		}
+		if err := os.RemoveAll(filepath.Join(f.Path, filepath.FromSlash(relPath))); err != nil {
+			return fmt.Errorf("删除本地实体失败: %w", err)
+		}
 	}
 	return m.Scan(folderID)
 }
 
-// Hydrate 水合文件夹：移除释放规则，让引擎从对端重新拉取内容。
+// Hydrate 水合文件夹或单路径：移除释放规则，让引擎从对端重新拉取内容。
 // timeout 内未同步完成则返回错误。
-func Hydrate(cfg *config.Config, m *syncthing.Manager, folderID string, timeout time.Duration) error {
+//
+// relPath 为空 = 文件夹级：移除 "(?d)*"，等待整个文件夹本地与全局一致。
+// relPath 非空 = 单路径：移除对应 "(?d)/path"（含 /path/** 变体），
+// 等待该路径重新出现在本地。
+func Hydrate(cfg *config.Config, m *syncthing.Manager, folderID, relPath string, timeout time.Duration) error {
 	f, err := findFolder(cfg, folderID)
 	if err != nil {
 		return err
 	}
-	rules, err := ReadStIgnore(f.Path)
-	if err != nil {
-		return err
-	}
-	kept := make([]string, 0, len(rules))
-	for _, r := range rules {
-		if r != ReleaseRule {
-			kept = append(kept, r)
+	relPath = strings.Trim(cleanRel(relPath), "/")
+	if relPath == "" {
+		if err := RemoveRules(f.Path, []string{ReleaseRule}); err != nil {
+			return fmt.Errorf("写入 .stignore 失败: %w", err)
 		}
+		if err := m.Scan(folderID); err != nil {
+			return err
+		}
+		return m.WaitFolderSynced(folderID, timeout)
 	}
-	if err := WriteStIgnore(f.Path, kept); err != nil {
+	// 单路径：移除文件与目录两种变体（幂等，不存在则跳过）。
+	remove := []string{"(?d)/" + relPath, "(?d)/" + relPath + "/", "(?d)/" + relPath + "/**"}
+	if err := RemoveRules(f.Path, remove); err != nil {
 		return fmt.Errorf("写入 .stignore 失败: %w", err)
 	}
 	if err := m.Scan(folderID); err != nil {
 		return err
 	}
-	return m.WaitFolderSynced(folderID, timeout)
+	return waitPathExists(filepath.Join(f.Path, filepath.FromSlash(relPath)), timeout)
+}
+
+// waitPathExists 轮询等待单路径重新出现在本地（水合完成标志）。
+func waitPathExists(realPath string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(realPath); err == nil {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("等待 %s 拉回超时（%s）", realPath, timeout)
 }
 
 // ErrFolderNotFound 表示配置中不存在指定文件夹。

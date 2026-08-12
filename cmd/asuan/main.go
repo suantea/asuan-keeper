@@ -9,6 +9,8 @@
 //	asuan config         打印当前配置
 //	asuan engine         查看引擎版本对照（agent 更新说明）
 //	asuan engine-update  更新引擎（可选版本号，默认最新已验证版本）
+//	asuan release <folder>  释放文件夹（删本地实体不传播，对端保留）
+//	asuan hydrate <folder>  水合文件夹（从对端重新拉回内容）
 package main
 
 import (
@@ -21,6 +23,7 @@ import (
 	"time"
 
 	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
 	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
 	"atomgit.com/suantea/asuan-keeper/internal/web"
 )
@@ -48,7 +51,7 @@ func loadOrDie(path string) (*config.Config, string) {
 func main() {
 	configPath := flag.String("config", "", "配置文件路径（默认 exe 同目录 asuan.json）")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|release|hydrate>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -74,6 +77,10 @@ func main() {
 		err = cmdEngine(*configPath)
 	case "engine-update":
 		err = cmdEngineUpdate(*configPath, flag.Args())
+	case "release":
+		err = cmdRelease(*configPath, flag.Args())
+	case "hydrate":
+		err = cmdHydrate(*configPath, flag.Args())
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -145,7 +152,31 @@ func cmdRun(configPath string) error {
 		return fmt.Errorf("网页控制台启动失败: %w", err)
 	}
 	fmt.Printf("asuan 同步运行中 (设备 %s, GUI %s, Web %s)\n", cfg.Name, cfg.Syncthing.GUIBind, cfg.Web.Bind)
+
+	// 占位符虚拟层：配置了挂载点时，把已释放文件夹以虚拟目录挂出
+	// （访问即水合）。需 WinFsp/macFUSE/FUSE 运行时，失败仅告警不阻断。
+	if cfg.Placeholder.Mount != "" {
+		if err := startPlaceholderMount(cfg, m); err != nil {
+			fmt.Fprintf(os.Stderr, "警告: 占位符虚拟层挂载失败: %v\n", err)
+		}
+	}
 	return m.Wait()
+}
+
+// startPlaceholderMount 挂载占位符虚拟层（阻塞，独立协程内运行）。
+func startPlaceholderMount(cfg *config.Config, m *syncthing.Manager) error {
+	lister := placeholder.NewReleaseLister(cfg, m)
+	ph := placeholder.NewPlaceholderFS(lister, "", func(rel string) error {
+		// 打开占位文件 → 水合对应文件夹（文件夹级）。
+		return placeholder.Hydrate(cfg, m, placeholder.FolderIDOf(lister, rel), 10*time.Minute)
+	}).SetResolver(lister.Resolve)
+	go func() {
+		if err := ph.Mount(cfg.Placeholder.Mount); err != nil {
+			fmt.Fprintf(os.Stderr, "警告: 占位符虚拟层已退出: %v\n", err)
+		}
+	}()
+	fmt.Printf("占位符虚拟层已挂载: %s（释放的文件夹将在此显示，访问即水合）\n", cfg.Placeholder.Mount)
+	return nil
 }
 
 func cmdStatus(configPath string) error {
@@ -218,6 +249,37 @@ func cmdEngineUpdate(configPath string, args []string) error {
 	}
 	fmt.Printf("引擎已更新到 %s（旧版本备份为 %s.bak）\n", v, m.Exe)
 	fmt.Println("若同步正在运行，请重启：asuan stop && asuan run")
+	return nil
+}
+
+// cmdRelease 释放文件夹：删本地实体不传播，对端内容保留。
+func cmdRelease(configPath string, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("用法: asuan release <folder-id>")
+	}
+	cfg, _ := loadOrDie(configPath)
+	m := syncthing.New(cfg, exeDir())
+	folderID := args[1]
+	if err := placeholder.Release(cfg, m, folderID); err != nil {
+		return err
+	}
+	fmt.Printf("已释放文件夹 %s：本地实体已删除，对端内容保留。\n", folderID)
+	fmt.Println("需要恢复时运行：asuan hydrate " + folderID)
+	return nil
+}
+
+// cmdHydrate 水合文件夹：从对端重新拉回内容。
+func cmdHydrate(configPath string, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("用法: asuan hydrate <folder-id>")
+	}
+	cfg, _ := loadOrDie(configPath)
+	m := syncthing.New(cfg, exeDir())
+	folderID := args[1]
+	if err := placeholder.Hydrate(cfg, m, folderID, 10*time.Minute); err != nil {
+		return err
+	}
+	fmt.Printf("已水合文件夹 %s：内容已从对端拉回。\n", folderID)
 	return nil
 }
 

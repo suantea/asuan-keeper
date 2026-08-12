@@ -22,11 +22,19 @@ type Config struct {
 	Version int    `json:"version"`
 	Name    string `json:"name"` // 本设备显示名
 
-	Syncthing Syncthing `json:"syncthing"`
-	Stealth   Stealth   `json:"stealth"`
-	Web       Web       `json:"web"`
-	Peers     []Peer    `json:"peers"`
-	Folders   []Folder  `json:"folders"`
+	Syncthing   Syncthing   `json:"syncthing"`
+	Stealth     Stealth     `json:"stealth"`
+	Web         Web         `json:"web"`
+	Placeholder Placeholder `json:"placeholder"`
+	Peers       []Peer      `json:"peers"`
+	Folders     []Folder    `json:"folders"`
+}
+
+// Placeholder 占位符虚拟层（P1）。挂载点为空表示不启用；
+// 启用后释放的文件夹以虚拟目录形式可见，访问即水合。
+// 运行时需 WinFsp（Windows）/ macFUSE（macOS）/ FUSE（Linux）。
+type Placeholder struct {
+	Mount string `json:"mount"` // 虚拟层挂载点目录（空=不启用）
 }
 
 // Web 内置网页控制台。

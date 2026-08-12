@@ -42,6 +42,7 @@
   button:hover{filter:brightness(1.2)}
   button.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
   button:disabled{opacity:.5;cursor:not-allowed}
+  button.small{padding:3px 10px;font-size:12px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
   .grow{flex:1}
   textarea{width:100%;height:360px;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px;font:12.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre;resize:vertical}
@@ -73,8 +74,8 @@
 <h2>同步文件夹</h2>
 <div class="panel">
   <table>
-    <thead><tr><th>名称</th><th>路径</th><th>状态</th><th>全局</th><th>本地</th><th>进度</th></tr></thead>
-    <tbody id="folders"><tr><td colspan="6" style="color:var(--muted)">加载中…</td></tr></tbody>
+    <thead><tr><th>名称</th><th>路径</th><th>状态</th><th>全局</th><th>本地</th><th>进度</th><th>操作</th></tr></thead>
+    <tbody id="folders"><tr><td colspan="7" style="color:var(--muted)">加载中…</td></tr></tbody>
   </table>
 </div>
 
@@ -163,15 +164,20 @@ async function status(){
     const total=Number(f.globalTotalItems)||0, local=Number(f.localTotalItems)||0;
     const pct=total>0?Math.round(100*local/total):(Number(f.globalFiles)>0?100:0);
     const done=pct>=100;
+    const relBtn=f.released
+      ?`<button class="small" onclick="act('hydrate',${JSON.stringify(f.id)})" title="从对端重新拉回内容">水合</button>`
+      :`<button class="small" onclick="act('release',${JSON.stringify(f.id)})" title="删除本地实体不传播，对端保留">释放</button>`;
+    const relPill=f.released?` <span class="pill waiting" title="已释放：本地实体已删，对端保留">已释放</span>`:'';
     return `<tr>
-      <td>${esc(f.label||f.id||'')}</td>
+      <td>${esc(f.label||f.id||'')}${relPill}</td>
       <td class="path" title="${esc(f.path||'')}">${esc(f.path||'')}</td>
       <td>${statePill(f.state)}</td>
       <td class="num">${fmt(total)} · ${size(f.globalBytes)}</td>
       <td class="num">${fmt(local)} · ${size(f.localBytes)}</td>
       <td><span class="bar ${done?'done':''}"><span style="width:${pct}%"></span></span> <span class="num" style="font-size:12px;color:var(--muted)">${pct}%${need>0?' · '+fmt(need)+' 待':''}</span></td>
+      <td>${relBtn}</td>
     </tr>`;
-  }).join(''):`<tr><td colspan="6" style="color:var(--muted)">尚无同步文件夹，请在配置中添加 folders</td></tr>`;
+  }).join(''):`<tr><td colspan="7" style="color:var(--muted)">尚无同步文件夹，请在配置中添加 folders</td></tr>`;
 
   $('peers').innerHTML=peers.length?peers.map(p=>`<tr>
     <td>${esc(p.name||'')}</td>
@@ -210,6 +216,15 @@ $('reload').onclick=async function(){
 };
 $('refresh').onclick=status;
 $('cfg').addEventListener('input',enableSave);
+
+// 释放/水合操作（占位符）。hydrate 会等待对端拉回，期间禁用按钮。
+async function act(kind,folder){
+  const verb=kind==='release'?'释放':'水合';
+  if(!confirm(`确定${verb}文件夹「${folder}」？\n\n释放：删除本地实体不传播，对端内容保留，本地空间释放。\n水合：从对端重新拉回全部内容。`)) return;
+  const d=await post('/api/'+kind,JSON.stringify({folder}));
+  if(d.ok){ toast(`${verb}成功`, 'ok'); setTimeout(status,1500); }
+  else toast(`${verb}失败：${d.error||''}`,'err');
+}
 
 status(); setInterval(status,3000);
 </script>

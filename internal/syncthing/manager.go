@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -218,6 +219,44 @@ func (m *Manager) WaitDown(timeout time.Duration) error {
 		time.Sleep(200 * time.Millisecond)
 	}
 	return fmt.Errorf("旧实例未在 %s 内退出", timeout)
+}
+
+// Scan 触发指定文件夹的重扫（占位符释放/水合后让引擎感知本地变化）。
+func (m *Manager) Scan(folderID string) error {
+	_, err := m.api("POST", "/rest/db/scan?folder="+url.QueryEscape(folderID), nil, nil)
+	return err
+}
+
+// WaitFolderSynced 轮询等待文件夹本地与全局一致（水合后等对端内容拉回）。
+// timeout 内未达成返回错误，便于 CLI 给出明确提示。
+func (m *Manager) WaitFolderSynced(folderID string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		var fs FolderStatus
+		if _, err := m.api("GET", "/rest/db/status?folder="+url.QueryEscape(folderID), nil, &fs); err == nil {
+			// 本地总项数 ≥ 全局总项数即视为拉回完成（含忽略项不计）。
+			if fs.LocalTotalItems >= fs.GlobalTotalItems && fs.NeedFiles == 0 {
+				return nil
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("等待文件夹 %s 同步完成超时（%s）", folderID, timeout)
+}
+
+// BrowseItem 是全局索引中的一个条目（占位符虚拟层数据源）。
+type BrowseItem struct {
+	Name string `json:"name"`
+	Type string `json:"type"` // "FILE" | "DIRECTORY"
+	Size int64  `json:"size"`
+}
+
+// Browse 列出文件夹全局索引中 prefix 路径下的条目（对端内容视图，
+// 用于占位符虚拟层展示已释放文件夹的远端文件）。
+func (m *Manager) Browse(folderID, prefix string) ([]BrowseItem, error) {
+	var items []BrowseItem
+	_, err := m.api("GET", "/rest/db/browse?folder="+url.QueryEscape(folderID)+"&prefix="+url.QueryEscape(prefix), nil, &items)
+	return items, err
 }
 
 // MyID 返回本机 syncthing 设备 ID。

@@ -9,8 +9,10 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
 	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
 )
 
@@ -35,6 +37,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/reload", s.handleReload)
+	mux.HandleFunc("/api/release", s.handleRelease)
+	mux.HandleFunc("/api/hydrate", s.handleHydrate)
 
 	ln, err := net.Listen("tcp", s.cfg.Web.Bind)
 	if err != nil {
@@ -62,12 +66,24 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+	// 标记每个文件夹是否处于释放状态（占位符：本地实体已删、对端保留）。
+	folders := make([]map[string]any, 0, len(st.Folders))
+	for _, f := range st.Folders {
+		released, _ := placeholder.IsReleased(f.Path)
+		folders = append(folders, map[string]any{
+			"id": f.ID, "label": f.Label, "path": f.Path, "state": f.State,
+			"globalFiles": f.GlobalFiles, "globalBytes": f.GlobalBytes,
+			"localFiles": f.LocalFiles, "localBytes": f.LocalBytes,
+			"needFiles": f.NeedFiles, "globalTotalItems": f.GlobalTotalItems,
+			"localTotalItems": f.LocalTotalItems, "released": released,
+		})
+	}
 	stj(w, map[string]any{
 		"name":    s.cfg.Name,
 		"running": st.Running,
 		"version": st.Version,
 		"myID":    st.MyID,
-		"folders": st.Folders,
+		"folders": folders,
 		"peers":   st.Peers,
 	})
 }
@@ -119,6 +135,62 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) {
 	mgr := s.mgr
 	s.mu.RUnlock()
 	if err := mgr.Reload(); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	stj(w, map[string]any{"ok": true})
+}
+
+// folderIDFromBody 解析请求体中的 {folder: id}。
+func folderIDFromBody(r *http.Request) (string, error) {
+	var b struct {
+		Folder string `json:"folder"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		return "", err
+	}
+	if b.Folder == "" {
+		return "", fmt.Errorf("缺少 folder 参数")
+	}
+	return b.Folder, nil
+}
+
+// handleRelease 释放文件夹：删本地实体不传播（占位符），对端保留。
+func (s *Server) handleRelease(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	folderID, err := folderIDFromBody(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	s.mu.RLock()
+	cfg, mgr := s.cfg, s.mgr
+	s.mu.RUnlock()
+	if err := placeholder.Release(cfg, mgr, folderID); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	stj(w, map[string]any{"ok": true})
+}
+
+// handleHydrate 水合文件夹：移除释放规则，从对端重新拉回内容。
+func (s *Server) handleHydrate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	folderID, err := folderIDFromBody(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	s.mu.RLock()
+	cfg, mgr := s.cfg, s.mgr
+	s.mu.RUnlock()
+	if err := placeholder.Hydrate(cfg, mgr, folderID, 10*time.Minute); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}

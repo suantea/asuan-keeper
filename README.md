@@ -1,11 +1,14 @@
 # asuan-keeper
 
-文件缓存与分发工具。
+> 文件缓存与分发工具：局域网优先同步，NAS 常驻中转，占位符按需拉取释放本地空间。
+
+## ✨ 功能特性
 
 - 局域网优先同步，NAS 作为常驻中转节点
 - 支持占位符（按需拉取），释放本地空间
 - 多端：Windows / macOS / NAS (Docker)
 - 客户端绿色免安装，占用极低
+- 引擎隐身化：自动消除 sidecar 引擎的联网特征，不暴露默认端口与主机名
 
 ## 快速开始（P0：基础同步）
 
@@ -53,6 +56,22 @@ asuan 自动消除 sidecar 引擎的联网特征（写入引擎配置）：
 
 见 `deploy/hub/README.md`。NAS 常驻持有全量内容 + 回收站（保留 30 天）。
 
+## 目录结构
+
+```
+cmd/           入口（端上程序 asuan 与 NAS 节点 asuan-hub）
+internal/      内部 Go 包
+deploy/        部署相关（hub/ Docker 编排、ENGINE.md 引擎版本说明）
+go.mod         Go 依赖
+NOTICE         Syncthing 等第三方声明
+```
+
+## 开发预期
+
+- **设计哲学**：局域网优先、占位符按需拉取、绿色便携、引擎隐身（防联网特征暴露）
+- **已实现**：P0 基础同步（init / run / status / stop）、网页控制台、NAS hub、占位符、引擎隐身化配置
+- **后续候选**（按需）：占位符策略优化、同步状态监控增强、安装包分发
+
 ## 许可与声明
 
 - asuan 自身代码采用 Mozilla Public License 2.0（MPL-2.0）授权。
@@ -65,4 +84,3 @@ asuan 自动消除 sidecar 引擎的联网特征（写入引擎配置）：
 |------|------|
 | `asuan` | 端上守护进程（Win/Mac/Linux），管理同步引擎与占位符 |
 | `asuan-hub` | NAS 常驻节点（Docker），持有全量内容与回收站 |
-

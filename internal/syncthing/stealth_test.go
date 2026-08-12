@@ -96,3 +96,61 @@ func TestApplyFoldersIdempotent(t *testing.T) {
 		t.Fatalf("重复应用不应重复添加, got %d", len(folders))
 	}
 }
+
+func TestApplyDevicesRemoteLimit(t *testing.T) {
+	full := fakeConfig()
+	peers := []config.Peer{
+		{Name: "nas", DeviceID: "PEER_REMOTE", Remote: true},
+		{Name: "lan", DeviceID: "PEER_LAN", Address: "192.168.1.5:22000"},
+	}
+	if err := applyDevices(full, peers, "SELF", "self", config.Remote{
+		Enable: true, Endpoint: "wg.example.com:22000", LimitKbps: 2048,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var devices []map[string]any
+	_ = json.Unmarshal(full["devices"], &devices)
+	got := map[string]map[string]any{}
+	for _, d := range devices {
+		id, _ := d["deviceID"].(string)
+		got[id] = d
+	}
+	rd := got["PEER_REMOTE"]
+	if rd == nil {
+		t.Fatal("应包含远程对端")
+	}
+	addrs, _ := rd["addresses"].([]any)
+	if len(addrs) != 1 || addrs[0] != "wg.example.com:22000" {
+		t.Fatalf("远程对端地址应为隧道端点, got %v", addrs)
+	}
+	if rd["maxSendKbps"] != float64(2048) || rd["maxRecvKbps"] != float64(2048) {
+		t.Fatalf("远程对端应限速 2048kbps, got %+v", rd)
+	}
+	lan := got["PEER_LAN"]
+	if lan == nil {
+		t.Fatal("应包含局域网对端")
+	}
+	if _, ok := lan["maxSendKbps"]; ok {
+		t.Fatalf("局域网对端不应限速, got %+v", lan)
+	}
+	if lan["addresses"].([]any)[0] != "192.168.1.5:22000" {
+		t.Fatalf("局域网对端地址应保持静态地址, got %+v", lan["addresses"])
+	}
+}
+
+func TestApplyDevicesRemoteDisabled(t *testing.T) {
+	full := fakeConfig()
+	peers := []config.Peer{{Name: "p", DeviceID: "PEER", Remote: true, Address: "192.168.1.9:22000"}}
+	if err := applyDevices(full, peers, "SELF", "self", config.Remote{}); err != nil {
+		t.Fatal(err)
+	}
+	var devices []map[string]any
+	_ = json.Unmarshal(full["devices"], &devices)
+	d := devices[0]
+	if _, ok := d["maxSendKbps"]; ok {
+		t.Fatalf("远程未启用时不应限速, got %+v", d)
+	}
+	if d["addresses"].([]any)[0] != "192.168.1.9:22000" {
+		t.Fatalf("远程未启用时应回退静态地址, got %+v", d["addresses"])
+	}
+}

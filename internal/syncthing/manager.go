@@ -276,7 +276,7 @@ func (m *Manager) Apply() error {
 	}
 	selfID, _ := m.MyID()
 	applyStealth(full, m.Cfg.Stealth)
-	if err := applyDevices(full, m.Cfg.Peers, selfID, m.Cfg.Name); err != nil {
+	if err := applyDevices(full, m.Cfg.Peers, selfID, m.Cfg.Name, m.Cfg.Remote); err != nil {
 		return err
 	}
 	var peerIDs []string
@@ -342,35 +342,54 @@ func applyStealth(full map[string]json.RawMessage, s config.Stealth) {
 	full["options"] = b
 }
 
-func applyDevices(full map[string]json.RawMessage, peers []config.Peer, selfID, selfName string) error {
+func applyDevices(full map[string]json.RawMessage, peers []config.Peer, selfID, selfName string, remote config.Remote) error {
 	var cur []map[string]any
 	if err := json.Unmarshal(full["devices"], &cur); err != nil {
 		return err
 	}
-	have := map[string]bool{}
+	byID := map[string]map[string]any{}
 	for _, d := range cur {
 		id, _ := d["deviceID"].(string)
-		have[id] = true
+		byID[id] = d
 		// 本机设备名默认取主机名，易暴露身份；改为 asuan 配置的设备名。
 		if id == selfID {
 			d["name"] = selfName
 		}
 	}
 	for _, p := range peers {
-		if have[p.DeviceID] {
-			continue
+		d, exists := byID[p.DeviceID]
+		if !exists {
+			d = map[string]any{
+				"deviceID":    p.DeviceID,
+				"name":        p.Name,
+				"compression": "metadata",
+				"paused":      false,
+			}
+			byID[p.DeviceID] = d
 		}
-		addr := []string{}
-		if p.Address != "" {
-			addr = []string{p.Address}
+		// 远程对端：地址走 WireGuard 隧道端点，并应用远程限速。
+		if p.Remote && remote.Enable {
+			if remote.Endpoint != "" {
+				d["addresses"] = []string{remote.Endpoint}
+			}
+			if remote.LimitKbps > 0 {
+				d["maxSendKbps"] = remote.LimitKbps
+				d["maxRecvKbps"] = remote.LimitKbps
+			}
+		} else {
+			addr := []string{}
+			if p.Address != "" {
+				addr = []string{p.Address}
+			}
+			d["addresses"] = addr
+			// LAN 对端不受远程限速约束；若此前设置过限速则清除。
+			delete(d, "maxSendKbps")
+			delete(d, "maxRecvKbps")
 		}
-		cur = append(cur, map[string]any{
-			"deviceID":    p.DeviceID,
-			"name":        p.Name,
-			"addresses":   addr,
-			"compression": "metadata",
-			"paused":      false,
-		})
+	}
+	cur = cur[:0]
+	for _, d := range byID {
+		cur = append(cur, d)
 	}
 	b, _ := json.Marshal(cur)
 	full["devices"] = b

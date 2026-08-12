@@ -41,6 +41,7 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	path := filepath.Join(dir, "asuan.json")
 	c := Default()
 	c.Name = "测试机"
+	c.Remote = Remote{Enable: true, Endpoint: "wg.example.com", LimitKbps: 1024}
 	if err := c.Save(path); err != nil {
 		t.Fatal(err)
 	}
@@ -50,5 +51,27 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	}
 	if got.Name != "测试机" {
 		t.Fatalf("名称不一致: %q", got.Name)
+	}
+	if !got.Remote.Enable || got.Remote.Endpoint != "wg.example.com" || got.Remote.LimitKbps != 1024 {
+		t.Fatalf("remote 配置不一致: %+v", got.Remote)
+	}
+}
+
+func TestRemoteValidate(t *testing.T) {
+	c := Default()
+	c.Remote.LimitKbps = -1
+	if err := c.Validate(); err == nil {
+		t.Fatal("负限速应报错")
+	}
+	c = Default()
+	c.Remote.Enable = true
+	if err := c.Validate(); err == nil {
+		t.Fatal("启用远程但无 endpoint 应报错")
+	}
+	c = Default()
+	c.Remote.Enable = true
+	c.Remote.Endpoint = "wg.example.com"
+	if err := c.Validate(); err != nil {
+		t.Fatalf("合法远程配置不应报错: %v", err)
 	}
 }

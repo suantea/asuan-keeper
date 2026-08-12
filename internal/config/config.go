@@ -24,10 +24,20 @@ type Config struct {
 
 	Syncthing   Syncthing   `json:"syncthing"`
 	Stealth     Stealth     `json:"stealth"`
+	Remote      Remote      `json:"remote"`
 	Web         Web         `json:"web"`
 	Placeholder Placeholder `json:"placeholder"`
 	Peers       []Peer      `json:"peers"`
 	Folders     []Folder    `json:"folders"`
+}
+
+// Remote 远程访问配置（P2）。启用后对端可经 WireGuard 隧道（UDP 443
+// 伪装 QUIC）跨网段同步；远程连接按 limit_kbps 限速，LAN 直连不受限。
+type Remote struct {
+	Enable      bool   `json:"enable"`       // 启用远程（WireGuard 隧道）访问
+	Endpoint    string `json:"endpoint"`     // 隧道端点：主机名或 IP（如 wg.example.com）
+	LimitKbps   int    `json:"limit_kbps"`   // 远程限速 kbps，0=不限
+	LanFullSpeed bool  `json:"lan_full_speed"` // LAN 直连始终满速，不受远程限速影响
 }
 
 // Placeholder 占位符虚拟层（P1）。挂载点为空表示不启用；
@@ -64,6 +74,7 @@ type Peer struct {
 	DeviceID string `json:"device_id"`
 	Address  string `json:"address"` // 局域网 host:port；仅静态地址，默认不扫描
 	MAC      string `json:"mac"`     // 可选，仅作记录/ARP 辅助解析
+	Remote   bool   `json:"remote"`  // 该对端走远程隧道（WireGuard），受远程限速约束
 }
 
 type Folder struct {
@@ -92,6 +103,9 @@ func Default() *Config {
 			DisableRelay:           true,
 			DisableNAT:             true,
 			TCPPort:                0,
+		},
+		Remote: Remote{
+			LanFullSpeed: true,
 		},
 	}
 }
@@ -138,6 +152,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Stealth.TCPPort < 0 || c.Stealth.TCPPort > 65535 {
 		return fmt.Errorf("stealth.tcp_port 非法: %d", c.Stealth.TCPPort)
+	}
+	if c.Remote.LimitKbps < 0 {
+		return fmt.Errorf("remote.limit_kbps 非法: %d", c.Remote.LimitKbps)
+	}
+	if c.Remote.Enable && c.Remote.Endpoint == "" {
+		return fmt.Errorf("remote.enable 为 true 时 remote.endpoint 不能为空")
 	}
 	for i, p := range c.Peers {
 		if p.DeviceID == "" {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/winfsp/cgofuse/fuse"
@@ -72,6 +73,21 @@ func rel(path string) string {
 	return strings.TrimPrefix(path, "/")
 }
 
+// splitVirt 把虚拟层相对路径按 "/" 切成 (目录, 文件名)。
+// 虚拟路径统一用 "/" 分隔（macFUSE/FUSE 与 WinFsp-FUSE 均如此），
+// 不能依赖 filepath.Split（Windows 上按 "\\" 切，会切错嵌套路径）。
+func splitVirt(p string) (dir, base string) {
+	p = strings.Trim(p, "/")
+	if p == "" {
+		return "", ""
+	}
+	i := strings.LastIndex(p, "/")
+	if i < 0 {
+		return "", p
+	}
+	return p[:i], p[i+1:]
+}
+
 // Statfs 返回虚拟层基本统计。
 func (fs *PlaceholderFS) Statfs(path string, stat *fuse.Statfs_t) int {
 	stat.Bsize = 4096
@@ -87,8 +103,8 @@ func (fs *PlaceholderFS) Getattr(path string, stat *fuse.Stat_t, fh uint64) int 
 		stat.Nlink = 2
 		return 0
 	}
-	dir, base := filepath.Split(rel(path))
-	entries, err := fs.lister.List(strings.TrimSuffix(dir, "/"))
+	dir, base := splitVirt(rel(path))
+	entries, err := fs.lister.List(dir)
 	if err != nil {
 		return -fuse.EIO
 	}
@@ -164,10 +180,13 @@ func (fs *PlaceholderFS) Read(path string, buff []byte, ofst int64, fh uint64) i
 // Mount 挂载占位虚拟层到指定挂载点（阻塞运行，需 WinFsp/macFUSE/FUSE）。
 // 返回文件系统宿主；调用方需保持运行直到取消。
 //
-// WinFsp-FUSE 语义：挂载点必须"预先不存在"——由文件系统在挂载时
-// 自动创建、卸载时删除；预先存在的目录（即使为空）会导致
-// "mount point in use" 失败。若挂载点已存在且为空目录，此处先安全
-// 移除后再挂载；非空目录则报错。
+// 平台差异：
+//   - Windows/WinFsp：挂载点必须"预先不存在"——由文件系统在挂载时
+//     自动创建、卸载时删除；预先存在的目录（即使为空）会导致
+//     "mount point in use" 失败。若挂载点已存在且为空目录，此处先
+//     安全移除后再挂载；非空目录则报错。
+//   - macOS/Linux（macFUSE/FUSE）：挂载点必须"预先存在"（空目录），
+//     不存在则自动创建，已存在的非空目录同样报错。
 func (fs *PlaceholderFS) Mount(mountpoint string) error {
 	if fi, err := os.Stat(mountpoint); err == nil {
 		if !fi.IsDir() {
@@ -178,12 +197,23 @@ func (fs *PlaceholderFS) Mount(mountpoint string) error {
 			return fmt.Errorf("读取挂载点失败: %w", err)
 		}
 		if len(entries) > 0 {
-			return fmt.Errorf("挂载点目录必须为空（WinFsp 需自动创建挂载点）: %s", mountpoint)
+			return fmt.Errorf("挂载点目录必须为空: %s", mountpoint)
 		}
-		if err := os.Remove(mountpoint); err != nil {
-			return fmt.Errorf("清理空挂载点失败: %w", err)
+		// WinFsp 要求挂载点不存在（自动创建）；macFUSE/FUSE 要求存在。
+		// 为空目录时：Windows 移除后由 WinFsp 重建，其他平台保留供挂载。
+		if runtime.GOOS == "windows" {
+			if err := os.Remove(mountpoint); err != nil {
+				return fmt.Errorf("清理空挂载点失败: %w", err)
+			}
 		}
-	} else if !os.IsNotExist(err) {
+	} else if os.IsNotExist(err) {
+		// macFUSE/FUSE 要求挂载点已存在：自动创建空目录。
+		if runtime.GOOS != "windows" {
+			if err := os.MkdirAll(mountpoint, 0o755); err != nil {
+				return fmt.Errorf("创建挂载点失败: %w", err)
+			}
+		}
+	} else {
 		return fmt.Errorf("检查挂载点失败: %w", err)
 	}
 	host := fuse.NewFileSystemHost(fs)

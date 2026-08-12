@@ -23,6 +23,33 @@
    ```
 3. 首次会生成 syncthing 配置并应用隐蔽选项；之后 `asuan run` 每次启动会再次核对配置。
 
+## 发布镜像到 Docker Hub（可选）
+
+默认 `docker compose up --build` 在本地构建。若想推送到 Docker Hub 供多台 NAS 直接拉取：
+
+```bash
+# 1. 构建并打标签（把 <user> 换成你的 Docker Hub 用户名）
+docker build -t <user>/asuan-hub:<版本> .
+
+# 2. 登录 Docker Hub（凭据只在本机输入，不会写入仓库）
+docker login
+
+# 3. 推送
+docker push <user>/asuan-hub:<版本>
+```
+
+然后改 `docker-compose.yml`，把 `build: .` 换成镜像引用即可在任意 NAS 拉取运行：
+
+```yaml
+services:
+  hub:
+    image: <user>/asuan-hub:<版本>   # 替代 build: .
+    container_name: asuan-hub
+    ...
+```
+
+注意：镜像基于官方 `syncthing/syncthing:2.1.3`（MPL-2.0），镜像内已含 Syncthing 二进制与许可证声明；对外发布请保留 `NOTICE` 中的来源与许可证信息（Dockerfile 未 COPY NOTICE 进镜像，如需随镜像分发可自行添加）。
+
 ## 防火墙放行（NAS 侧）
 
 同步端口必须在 NAS 防火墙上对局域网放行，否则对端无法直连 hub。以常见 NAS 为例：

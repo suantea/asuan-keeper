@@ -1,34 +1,45 @@
 #!/bin/bash
-# push-hub.sh — 构建并推送 asuan-hub 镜像到 Docker Hub。
+# push-hub.sh — 构建并推送 asuan-hub 镜像到任意镜像仓库(registry)。
 #
 # 用法:
-#   ./deploy/hub/push-hub.sh <DockerHub用户名> [版本]
-#     用户名: 你的 Docker Hub 用户名(必填)
-#     版本:    镜像标签(默认 latest)
+#   ./deploy/hub/push-hub.sh <镜像仓库路径> [版本]
+#     镜像仓库路径: 可以是 Docker Hub 用户名/项目,也可以是任意 registry 前缀
+#     版本:         镜像标签(默认 latest)
 #
 # 示例:
-#   ./deploy/hub/push-hub.sh myname latest
+#   Docker Hub:  ./deploy/hub/push-hub.sh suantea/asuan-hub latest
+#   阿里云 ACR:  ./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-hub v1.0.0
+#   腾讯云 TCR:  ./deploy/hub/push-hub.sh ccr.ccs.tencent-cloud.com/ns/asuan-hub v1.0.0
+#   华为云 SWR:  ./deploy/hub/push-hub.sh swr.cn-north-4.myhuaweicloud.com/ns/asuan-hub v1.0.0
 #
 # 注意:
 # - 登录凭据只在执行时由你本机输入 docker login,脚本不会保存/上传任何账号信息。
 # - 需在有 Docker 的机器上执行(本机无 docker 时无法推送)。
+# - 国内 registry 首次使用前先创建命名空间与仓库,并在对应控制台开通公网访问。
 set -euo pipefail
 
-USERNAME="${1:-}"
+IMAGE_PATH="${1:-}"
 VERSION="${2:-latest}"
-if [ -z "$USERNAME" ]; then
-  echo "用法: ./deploy/hub/push-hub.sh <DockerHub用户名> [版本]"
+if [ -z "$IMAGE_PATH" ]; then
+  echo "用法: ./deploy/hub/push-hub.sh <镜像仓库路径> [版本]"
+  echo "示例: ./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-hub v1.0.0"
   exit 1
 fi
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-IMAGE="$USERNAME/asuan-hub:$VERSION"
+IMAGE="$IMAGE_PATH:$VERSION"
 
 echo "==> 构建镜像: $IMAGE"
 docker build -t "$IMAGE" "$DIR"
 
-echo "==> 登录 Docker Hub(输入你的用户名与访问令牌/密码)"
-docker login
+echo "==> 登录镜像仓库(输入你的用户名与访问令牌/密码)"
+# 国内 registry 需先 docker login <registry域名>;Docker Hub 直接 docker login
+REGISTRY="${IMAGE_PATH%%/*}"
+if [[ "$REGISTRY" == *"."* ]] || [[ "$REGISTRY" == *":"* ]]; then
+  docker login "$REGISTRY"
+else
+  docker login
+fi
 
 echo "==> 推送: $IMAGE"
 docker push "$IMAGE"

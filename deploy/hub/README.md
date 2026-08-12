@@ -23,19 +23,40 @@
    ```
 3. 首次会生成 syncthing 配置并应用隐蔽选项；之后 `asuan run` 每次启动会再次核对配置。
 
-## 发布镜像到 Docker Hub（可选）
+## 发布镜像到镜像仓库（可选）
 
-默认 `docker compose up --build` 在本地构建。若想推送到 Docker Hub 供多台 NAS 直接拉取：
+默认 `docker compose up --build` 在本地构建。若想推送到镜像仓库供多台 NAS 直接拉取，推荐使用**一键脚本**（支持任意 registry，含国内仓库）：
 
 ```bash
-# 1. 构建并打标签（把 <user> 换成你的 Docker Hub 用户名）
-docker build -t <user>/asuan-hub:<版本> .
+./deploy/hub/push-hub.sh <镜像仓库路径> [版本]
 
-# 2. 登录 Docker Hub（凭据只在本机输入，不会写入仓库）
-docker login
+# 示例：
+# Docker Hub（对中国用户较慢，可选用国内仓库替代）
+./deploy/hub/push-hub.sh suantea/asuan-hub latest
+# 阿里云 ACR
+./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-hub v1.0.0
+# 腾讯云 TCR
+./deploy/hub/push-hub.sh ccr.ccs.tencent-cloud.com/ns/asuan-hub v1.0.0
+# 华为云 SWR
+./deploy/hub/push-hub.sh swr.cn-north-4.myhuaweicloud.com/ns/asuan-hub v1.0.0
+```
 
-# 3. 推送
-docker push <user>/asuan-hub:<版本>
+脚本会：`docker build` 构建 → `docker login`（凭据只在你本机输入）→ `docker push`。国内 registry 首次使用前需先在其控制台创建命名空间与仓库、开通公网访问。
+
+### 国内镜像仓库推荐（对中国用户更友好）
+
+| 仓库 | 地址格式 | 特点 |
+|------|----------|------|
+| 阿里云容器镜像服务 ACR | `registry.<地域>.aliyuncs.com/<命名空间>/<镜像>` | 国内访问快，个人免费版够用，支持多地域 |
+| 腾讯云 TCR | `ccr.ccs.tencent-cloud.com/<命名空间>/<镜像>` | 个人版免费，腾讯云生态 |
+| 华为云 SWR | `swr.<地域>.myhuaweicloud.com/<组织>/<镜像>` | 免费额度，华为云生态 |
+
+手动方式（等价于脚本）：
+
+```bash
+docker build -t <镜像仓库路径>:<版本> .
+docker login <registry域名>   # Docker Hub 直接 docker login
+docker push <镜像仓库路径>:<版本>
 ```
 
 然后改 `docker-compose.yml`，把 `build: .` 换成镜像引用即可在任意 NAS 拉取运行：
@@ -43,7 +64,7 @@ docker push <user>/asuan-hub:<版本>
 ```yaml
 services:
   hub:
-    image: <user>/asuan-hub:<版本>   # 替代 build: .
+    image: <镜像仓库路径>:<版本>   # 替代 build: .
     container_name: asuan-hub
     ...
 ```

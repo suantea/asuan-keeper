@@ -80,12 +80,14 @@ docker logs -f asuan-hub
    - `peers`：hub 设备 ID + NAS 局域网地址（`tcp://<NAS_IP>:44312`）
    - `folders`：与 hub 相同的 `id`，`path` 为本机路径，`policy: sync`
 3. **交换设备 ID**：`asuan status` 打印各自设备 ID，互填进对端的 `peers`，两端重载配置。
-4. **验证**：
+4. **Win 侧防火墙**（避免首次运行弹窗）：管理员执行 `asuan firewall add` 预置放行规则（规则名 `asuan-sync-<端口>`，仅按端口放行、不暴露引擎进程名）；确认 `asuan firewall status` 显示已放行后重启 `asuan run`。
+5. **验证**：
    - Win 端 `asuan run` 启动后，打开 `http://127.0.0.1:18084`，对端列表应显示 NAS 在线。
    - 在 Win 的同步文件夹新建文件，NAS 的 `./files/<id>` 应出现对应文件（中文文件名/子目录完好）。
    - NAS 网页 `http://<NAS>:18084` 应显示 Win 在线、无待同步文件。
-5. **常见排查**：
+6. **常见排查**：
    - 对端显示离线 → 检查 NAS 防火墙是否放行 `stealth.tcp_port`（见上文）。
+   - Win 首次运行弹"允许访问"对话框 → 管理员执行 `asuan firewall add` 预置规则后重启。
    - 设备 ID 不匹配 → `peers` 里填的是**对端**的 ID，别填成自己。
    - 文件夹不同步 → 两端 `folders[].id` 必须完全一致（含大小写）。
    - 权限报错 → 挂载目录属主与 `PUID/PGID` 不符，调整 compose 环境变量。

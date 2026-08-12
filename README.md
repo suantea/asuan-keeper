@@ -52,6 +52,20 @@ asuan 自动消除 sidecar 引擎的联网特征（写入引擎配置）：
 
 引擎版本对照与更新由 asuan agent 管理，`asuan engine` 查看说明，`asuan engine-update` 自动更新（可 `ASUAN_ENGINE_BASE` 指定下载镜像）。详见 [deploy/ENGINE.md](deploy/ENGINE.md)。
 
+## 系统防火墙（Windows）
+
+sidecar 首次监听端口时，Windows 防火墙可能弹出"允许访问"对话框，暴露进程与端口，违背隐蔽设计。为此 asuan 提供防火墙规则管理：
+
+```bash
+asuan firewall status    # 查看 stealth.tcp_port 是否已放行
+asuan firewall add       # 预置入站放行规则（需管理员）
+asuan firewall remove    # 移除规则
+```
+
+- 规则名中性（`asuan-sync-<端口>`），按端口而非程序路径放行，不暴露 syncthing 位置
+- `stealth.tcp_port` 为 0（随机端口）时无法预置，需先在 `asuan.json` 固定端口
+- 首次部署执行一次 `asuan firewall add` 后不再弹窗
+
 ## NAS hub（Docker）
 
 见 `deploy/hub/README.md`。NAS 常驻持有全量内容 + 回收站（保留 30 天）。
@@ -69,8 +83,20 @@ NOTICE         Syncthing 等第三方声明
 ## 开发预期
 
 - **设计哲学**：局域网优先、占位符按需拉取、绿色便携、引擎隐身（防联网特征暴露）
-- **已实现**：P0 基础同步（init / run / status / stop）、网页控制台、NAS hub、占位符、引擎隐身化配置
+- **已实现**：P0 基础同步（init / run / status / stop）、网页控制台、NAS hub、占位符、引擎隐身化配置、系统托盘、防火墙规则管理
 - **后续候选**（按需）：占位符策略优化、同步状态监控增强、安装包分发
+
+## 实机验证清单
+
+开发环境仅验证到"编译 + 单机运行 + API"层面；以下项需在真实机器上逐条确认（勾选即通过）：
+
+- [ ] **Windows 客户端**：程序目录放 `asuan.exe` + `syncthing.exe`，`asuan init` 后编辑 `asuan.json`，`asuan run` 启动
+- [ ] **Windows 托盘交互**：启动后最小化到托盘；左键单击弹出网页控制台（进度），左键双击打开配置，右键菜单可退出/暂停-同步
+- [ ] **Windows 防火墙**：管理员执行 `asuan firewall add` 后重启 `asuan run`，确认不再弹"允许访问"对话框
+- [ ] **占位符（Windows/WinFsp）**：安装 WinFsp，配置 `placeholder.mount` 后释放文件夹，虚拟层可见对端文件、访问触发水合
+- [ ] **Win ↔ NAS 双端联调**：按 `deploy/hub/README.md` 部署 hub（含防火墙放行），两端互填设备 ID，文件双向同步、删除进回收站
+- [ ] **macOS 客户端**：按 `deploy/MAC.md` 安装 macFUSE、本机构建，托盘与占位符（macFUSE 挂载/水合）实机验证
+- [ ] **远程限速**：配置 `remote` 段 + WireGuard 隧道后，远程连接按 `limit_kbps` 限速、LAN 直连满速
 
 ## 许可与声明
 

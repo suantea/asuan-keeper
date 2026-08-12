@@ -227,6 +227,18 @@ func (m *Manager) Scan(folderID string) error {
 	return err
 }
 
+// Pause 暂停全部同步（托盘"暂停同步"入口）：停止拉取/推送，连接保留。
+func (m *Manager) Pause() error {
+	_, err := m.api("POST", "/rest/system/pause", nil, nil)
+	return err
+}
+
+// Resume 恢复全部同步（托盘"继续同步"入口）。
+func (m *Manager) Resume() error {
+	_, err := m.api("POST", "/rest/system/resume", nil, nil)
+	return err
+}
+
 // WaitFolderSynced 轮询等待文件夹本地与全局一致（水合后等对端内容拉回）。
 // timeout 内未达成返回错误，便于 CLI 给出明确提示。
 func (m *Manager) WaitFolderSynced(folderID string, timeout time.Duration) error {

@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"atomgit.com/suantea/asuan-keeper/internal/config"
 	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
 	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
+	"atomgit.com/suantea/asuan-keeper/internal/tray"
 	"atomgit.com/suantea/asuan-keeper/internal/web"
 )
 
@@ -153,6 +155,39 @@ func cmdRun(configPath string) error {
 	}
 	fmt.Printf("asuan 同步运行中 (设备 %s, GUI %s, Web %s)\n", cfg.Name, cfg.Syncthing.GUIBind, cfg.Web.Bind)
 
+	// 系统托盘：单击→查看同步进度，双击→打开配置界面，右键→菜单（退出/暂停-同步/打开控制台）。
+	// Windows/macOS 均为托盘形态；启动失败仅告警不阻断。
+	webURL := consoleURL(cfg.Web.Bind)
+	tray.SetStatusFn(m.Status)
+	go func() {
+		tray.Run(tray.Actions{
+			OpenConsole: func() {
+				_ = tray.OpenBrowser(webURL)
+			},
+			OpenConfig: func() {
+				_ = tray.OpenBrowser(webURL)
+			},
+			TogglePause: func() bool {
+				if tray.Paused() {
+					if err := m.Resume(); err != nil {
+						fmt.Fprintf(os.Stderr, "恢复同步失败: %v\n", err)
+						return true
+					}
+					return false
+				}
+				if err := m.Pause(); err != nil {
+					fmt.Fprintf(os.Stderr, "暂停同步失败: %v\n", err)
+					return false
+				}
+				return true
+			},
+			OnExit: func() {
+				_ = m.Stop()
+			},
+		})
+	}()
+	fmt.Printf("托盘已启动：单击查看进度，双击打开配置，右键菜单\n")
+
 	// 占位符虚拟层：配置了挂载点时，把已释放文件夹以虚拟目录挂出
 	// （访问即水合）。需 WinFsp/macFUSE/FUSE 运行时，失败仅告警不阻断。
 	if cfg.Placeholder.Mount != "" {
@@ -161,6 +196,23 @@ func cmdRun(configPath string) error {
 		}
 	}
 	return m.Wait()
+}
+
+// consoleURL 从 web.bind 解析出浏览器可访问的 URL（一律走本机回环，
+// 即使 hub 绑 0.0.0.0，本机访问仍用 127.0.0.1）。
+func consoleURL(bind string) string {
+	host, port := bind, "18084"
+	if h, p, err := net.SplitHostPort(bind); err == nil {
+		host, port = h, p
+	} else if strings.Contains(bind, ":") {
+		port = bind[strings.LastIndex(bind, ":")+1:]
+		host = bind[:strings.LastIndex(bind, ":")]
+	}
+	_ = host
+	if port == "" {
+		port = "18084"
+	}
+	return "http://127.0.0.1:" + port
 }
 
 // startPlaceholderMount 挂载占位符虚拟层（阻塞，独立协程内运行）。

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"atomgit.com/suantea/asuan-keeper/internal/firewall"
 	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
 	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
 	"atomgit.com/suantea/asuan-keeper/internal/tray"
@@ -79,6 +80,8 @@ func main() {
 		err = cmdEngine(*configPath)
 	case "engine-update":
 		err = cmdEngineUpdate(*configPath, flag.Args())
+	case "firewall":
+		err = cmdFirewall(*configPath, flag.Args())
 	case "release":
 		err = cmdRelease(*configPath, flag.Args())
 	case "hydrate":
@@ -213,6 +216,58 @@ func consoleURL(bind string) string {
 		port = "18084"
 	}
 	return "http://127.0.0.1:" + port
+}
+
+// cmdFirewall 管理系统防火墙放行规则(Windows):
+//
+//	asuan firewall status           查看当前端口是否已放行
+//	asuan firewall add              添加入站放行规则(需管理员)
+//	asuan firewall remove           移除放行规则(需管理员)
+//
+// 端口取 stealth.tcp_port;为 0(随机端口)时提示先固定端口。
+func cmdFirewall(configPath string, args []string) error {
+	cfg, _ := loadOrDie(configPath)
+	port := cfg.Stealth.TCPPort
+	sub := ""
+	if len(args) > 1 {
+		sub = args[1]
+	}
+	switch sub {
+	case "", "status":
+		ok, err := firewall.Status(port)
+		if err != nil {
+			return err
+		}
+		if port == 0 {
+			fmt.Println("stealth.tcp_port 为 0(随机端口),无法预置防火墙规则;请先在 asuan.json 固定端口")
+			return nil
+		}
+		if ok {
+			fmt.Printf("防火墙规则 %s 已存在(TCP %d 已放行)\n", firewall.RuleName(port), port)
+		} else {
+			fmt.Printf("防火墙规则不存在(TCP %d 未放行,首次运行 syncthing 可能弹出系统对话框)\n", port)
+			fmt.Printf("运行 `asuan firewall add`(管理员)预置规则\n")
+		}
+		return nil
+	case "add":
+		if port == 0 {
+			fmt.Println("stealth.tcp_port 为 0(随机端口),无法预置规则;请先在 asuan.json 固定端口")
+			return nil
+		}
+		if err := firewall.Add(port); err != nil {
+			return err
+		}
+		fmt.Printf("已放行 TCP %d(规则 %s)\n", port, firewall.RuleName(port))
+		return nil
+	case "remove":
+		if err := firewall.Remove(port); err != nil {
+			return err
+		}
+		fmt.Printf("已移除规则 %s\n", firewall.RuleName(port))
+		return nil
+	default:
+		return fmt.Errorf("用法: asuan firewall <status|add|remove>")
+	}
 }
 
 // startPlaceholderMount 挂载占位符虚拟层（阻塞，独立协程内运行）。

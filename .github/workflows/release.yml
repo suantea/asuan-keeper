@@ -71,8 +71,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    # 未配置 Docker Hub secrets 时跳过（不阻塞 release）
-    if: secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != ''
+    # GitHub Actions 不允许在 job/step 的 if 里引用 secrets 上下文，
+    # 因此先把 secrets 注入 env，再在步骤级用 env 守卫：
+    # 未配置 Docker Hub secrets 时跳过登录与推送（不阻塞 release）。
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -80,10 +84,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Compute image tags
         id: meta
@@ -95,6 +100,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
+        if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
         uses: docker/build-push-action@v6
         with:
           context: ./deploy/hub

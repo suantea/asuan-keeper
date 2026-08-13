@@ -68,7 +68,28 @@ asuan firewall remove    # 移除规则
 
 ## NAS hub（Docker）
 
-见 `deploy/hub/README.md`。NAS 常驻持有全量内容 + 回收站（保留 30 天）。
+NAS 常驻持有全量内容 + 回收站（保留 30 天）。镜像已发布到 Docker Hub（`suantea/asuan-keeper`），推荐直接拉取镜像部署，无需本地构建：
+
+- **快速部署（推荐）**：完整部署文档见 [deploy/hub/README.md](deploy/hub/README.md)，含精简版 / 完全版 docker-compose
+- **精简版 compose**：[deploy/hub/docker-compose.minimal.yaml](deploy/hub/docker-compose.minimal.yaml)（复制即用）
+- **完全版 compose**：[deploy/hub/docker-compose.remote.yaml](deploy/hub/docker-compose.remote.yaml)（含逐项注释）
+- **本地源码构建版**：[deploy/hub/docker-compose.yml](deploy/hub/docker-compose.yml)（`build: .`，不上镜像仓库）
+
+快速上手：
+
+```bash
+# 1. 建目录、放配置（复制 deploy/hub/asuan.example.json 修改 peers/folders/tcp_port）
+mkdir -p asuan-keeper && cd asuan-keeper
+cp <本仓库>/deploy/hub/asuan.example.json asuan.json
+
+# 2. 用精简版或完全版 compose 启动（自动从 Docker Hub 拉取 suantea/asuan-keeper 镜像）
+docker compose up -d
+
+# 3. 打开网页控制台
+#    http://<NAS>:18084
+```
+
+镜像基于官方 `syncthing/syncthing:2.1.3`（MPL-2.0），详见 [NOTICE](NOTICE) 与 [deploy/hub/README.md](deploy/hub/README.md)。
 
 ## 目录结构
 

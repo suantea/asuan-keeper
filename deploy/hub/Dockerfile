@@ -1,4 +1,4 @@
-# asuan-hub：NAS 常驻中转节点镜像。
+# asuan-keeper：NAS 常驻中转节点镜像。
 # 基于官方 syncthing 镜像，叠加我们的 asuan 管理程序，统一配置路径。
 # 构建阶段用 Debian（golang:*-bookworm）而非 alpine：asuan 依赖 cgofuse(FUSE)
 # 与 systray(GTK/ayatana)，需要 cgo 及系统头文件，alpine 下 CGO_ENABLED=0 编译失败。

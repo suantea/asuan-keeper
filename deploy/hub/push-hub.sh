@@ -1,5 +1,5 @@
 #!/bin/bash
-# push-hub.sh — 构建并推送 asuan-hub 镜像到任意镜像仓库(registry)。
+# push-hub.sh — 构建并推送 asuan-keeper 镜像到任意镜像仓库(registry)。
 #
 # 用法:
 #   ./deploy/hub/push-hub.sh <镜像仓库路径> [版本]
@@ -7,10 +7,10 @@
 #     版本:         镜像标签(默认 latest)
 #
 # 示例:
-#   Docker Hub:  ./deploy/hub/push-hub.sh suantea/asuan-hub latest
-#   阿里云 ACR:  ./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-hub v1.0.0
-#   腾讯云 TCR:  ./deploy/hub/push-hub.sh ccr.ccs.tencent-cloud.com/ns/asuan-hub v1.0.0
-#   华为云 SWR:  ./deploy/hub/push-hub.sh swr.cn-north-4.myhuaweicloud.com/ns/asuan-hub v1.0.0
+#   Docker Hub:  ./deploy/hub/push-hub.sh suantea/asuan-keeper latest
+#   阿里云 ACR:  ./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-keeper v1.0.0
+#   腾讯云 TCR:  ./deploy/hub/push-hub.sh ccr.ccs.tencent-cloud.com/ns/asuan-keeper v1.0.0
+#   华为云 SWR:  ./deploy/hub/push-hub.sh swr.cn-north-4.myhuaweicloud.com/ns/asuan-keeper v1.0.0
 #
 # 注意:
 # - 登录凭据只在执行时由你本机输入 docker login,脚本不会保存/上传任何账号信息。
@@ -22,7 +22,7 @@ IMAGE_PATH="${1:-}"
 VERSION="${2:-latest}"
 if [ -z "$IMAGE_PATH" ]; then
   echo "用法: ./deploy/hub/push-hub.sh <镜像仓库路径> [版本]"
-  echo "示例: ./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-hub v1.0.0"
+  echo "示例: ./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-keeper v1.0.0"
   exit 1
 fi
 

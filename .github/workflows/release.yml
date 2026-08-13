@@ -84,7 +84,7 @@ jobs:
           generate_release_notes: true
 
   docker:
-    name: Docker Hub (asuan-hub)
+    name: Docker Hub (asuan-keeper)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -126,8 +126,8 @@ jobs:
           file: ./deploy/hub/Dockerfile
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           tags: |
-            suantea/asuan-hub:latest
-            suantea/asuan-hub:${{ steps.meta.outputs.version }}
+            suantea/asuan-keeper:latest
+            suantea/asuan-keeper:${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -73,7 +73,7 @@ asuan firewall remove    # 移除规则
 ## 目录结构
 
 ```
-cmd/           入口（端上程序 asuan 与 NAS 节点 asuan-hub）
+cmd/           入口（端上程序 asuan 与 NAS 节点 asuan-keeper）
 internal/      内部 Go 包
 deploy/        部署相关（hub/ Docker 编排、ENGINE.md 引擎版本说明）
 go.mod         Go 依赖
@@ -109,4 +109,4 @@ NOTICE         Syncthing 等第三方声明
 | 组件 | 说明 |
 |------|------|
 | `asuan` | 端上守护进程（Win/Mac/Linux），管理同步引擎与占位符 |
-| `asuan-hub` | NAS 常驻节点（Docker），持有全量内容与回收站 |
+| `asuan-keeper` | NAS 常驻节点（Docker），持有全量内容与回收站 |

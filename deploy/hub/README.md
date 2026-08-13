@@ -1,4 +1,6 @@
-# asuan-hub 部署说明（NAS / Docker）
+# asuan-keeper 部署说明（NAS / Docker）
+
+**asuan-keeper** 是 asuan 的 NAS 常驻中转节点镜像：基于官方 Syncthing 镜像叠加 asuan 管理程序，统一配置路径，开箱即用地在 NAS 上托管全量文件同步。支持 PUID/PGID 权限修正与 host 网络模式，部署后通过 `http://<NAS>:18084` 网页控制台即可管理。
 
 常驻中转节点，持有全量内容 + 回收站（Syncthing trashcan 保留 30 天）。
 
@@ -32,13 +34,13 @@
 
 # 示例：
 # Docker Hub（对中国用户较慢，可选用国内仓库替代）
-./deploy/hub/push-hub.sh suantea/asuan-hub latest
+./deploy/hub/push-hub.sh suantea/asuan-keeper latest
 # 阿里云 ACR
-./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-hub v1.0.0
+./deploy/hub/push-hub.sh registry.cn-hangzhou.aliyuncs.com/ns/asuan-keeper v1.0.0
 # 腾讯云 TCR
-./deploy/hub/push-hub.sh ccr.ccs.tencent-cloud.com/ns/asuan-hub v1.0.0
+./deploy/hub/push-hub.sh ccr.ccs.tencent-cloud.com/ns/asuan-keeper v1.0.0
 # 华为云 SWR
-./deploy/hub/push-hub.sh swr.cn-north-4.myhuaweicloud.com/ns/asuan-hub v1.0.0
+./deploy/hub/push-hub.sh swr.cn-north-4.myhuaweicloud.com/ns/asuan-keeper v1.0.0
 ```
 
 脚本会：`docker build` 构建 → `docker login`（凭据只在你本机输入）→ `docker push`。国内 registry 首次使用前需先在其控制台创建命名空间与仓库、开通公网访问。
@@ -65,7 +67,7 @@ docker push <镜像仓库路径>:<版本>
 services:
   hub:
     image: <镜像仓库路径>:<版本>   # 替代 build: .
-    container_name: asuan-hub
+    container_name: asuan-keeper
     ...
 ```
 
@@ -92,8 +94,8 @@ services:
 ## 查看状态
 
 ```bash
-docker exec asuan-hub asuan -config /etc/asuan/asuan.json status
-docker logs -f asuan-hub
+docker exec asuan-keeper asuan -config /etc/asuan/asuan.json status
+docker logs -f asuan-keeper
 ```
 
 ## 网页控制台
@@ -119,8 +121,8 @@ docker logs -f asuan-hub
 
 1. **NAS 侧**：按上文完成 `asuan.json` 与 `docker compose up -d --build`，确认日志无错误：
    ```bash
-   docker logs asuan-hub | tail -20
-   docker exec asuan-hub asuan -config /etc/asuan/asuan.json status
+   docker logs asuan-keeper | tail -20
+   docker exec asuan-keeper asuan -config /etc/asuan/asuan.json status
    ```
 2. **Win 侧**：程序目录放 `asuan.exe` + `syncthing.exe`，执行 `asuan init` 生成 `asuan.json`，填写：
    - `name`：本机名（如 `win-pc`）

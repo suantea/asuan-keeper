@@ -4,6 +4,89 @@
 
 常驻中转节点，持有全量内容 + 回收站（Syncthing trashcan 保留 30 天）。
 
+## 快速部署（拉取 Docker Hub 镜像，推荐）
+
+镜像已发布到 Docker Hub（`suantea/asuan-keeper`），NAS 上无需本地构建，直接拉取运行。仓库提供两个 compose 文件：
+
+| 文件 | 说明 |
+|------|------|
+| `docker-compose.remote.yaml` | **完全版**：拉取镜像 + 完整注释（端口/挂载/环境变量逐项说明） |
+| `docker-compose.minimal.yaml` | **精简版**：拉取镜像 + 最小可用配置，无注释复制即用 |
+
+### 精简版（复制即用）
+
+```yaml
+services:
+  hub:
+    image: suantea/asuan-keeper:latest
+    container_name: asuan-keeper
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./asuan.json:/etc/asuan/asuan.json
+      - ./syncthing-config:/var/syncthing/config
+      - ./data:/var/syncthing
+      - ./files:/sync
+    environment:
+      - STNOUPGRADE=1
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+```
+
+### 完全版（含注释，配置项逐条说明）
+
+```yaml
+# asuan-keeper NAS 常驻节点部署（拉取 Docker Hub 镜像版）
+# 镜像: suantea/asuan-keeper（tag: latest / vX.Y.Z）
+services:
+  hub:
+    image: suantea/asuan-keeper:latest
+    container_name: asuan-keeper
+    restart: unless-stopped
+    # host 网络：syncthing 监听端口直接暴露到 LAN（端口由 asuan.json 的 stealth.tcp_port 决定，
+    # 不固定映射，符合隐蔽要求）；GUI 绑 loopback 仅容器内可访问，网页控制台绑 0.0.0.0
+    # 供局域网 http://NAS:18084 访问。
+    network_mode: host
+    volumes:
+      # 读写挂载：内置网页控制台可直接保存配置。
+      - ./asuan.json:/etc/asuan/asuan.json   # asuan 配置
+      - ./syncthing-config:/var/syncthing/config  # syncthing 配置/证书
+      - ./data:/var/syncthing               # syncthing 数据
+      - ./files:/sync                       # 平铺明文文件，可直接 SMB 访问
+    environment:
+      - STNOUPGRADE=1                       # 禁止 syncthing 自动升级
+      - PUID=${PUID:-1000}                  # 容器内进程 UID（与宿主机一致避免权限问题）
+      - PGID=${PGID:-1000}                  # 容器内进程 GID
+```
+
+> 两个文件也都在仓库 `deploy/hub/` 目录下，可直接下载使用。
+
+### 部署步骤
+
+```bash
+# 1. 建目录、放配置（复制 asuan.example.json 修改）
+mkdir -p asuan-keeper && cd asuan-keeper
+cp <本仓库>/deploy/hub/asuan.example.json asuan.json
+#    修改 asuan.json：
+#    - syncthing.gui_api_key：随机长字符串
+#    - stealth.tcp_port：监听端口（各端与 hub 保持一致，如 44312）
+#    - peers：各端设备 ID 与静态地址
+#    - folders：本节点持有的文件夹，path 填容器内路径 /sync/<id>
+
+# 2. 把上面精简版或完全版 yaml 存为 docker-compose.yml 后启动
+#    （首次会自动从 Docker Hub 拉取 suantea/asuan-keeper 镜像）
+docker compose up -d
+
+# 3. 打开网页控制台
+#    http://<NAS>:18084
+
+# 4. 查看状态 / 日志
+docker exec asuan-keeper asuan -config /etc/asuan/asuan.json status
+docker logs -f asuan-keeper
+```
+
+> 本地源码构建部署（`build: .`，不上 Docker Hub）见下文「准备」章节与 `docker-compose.yml`。
+
 ## 端口清单
 
 | 端口 | 用途 | 暴露范围 |

@@ -1,0 +1,24 @@
+# asuan-keeper NAS 常驻节点部署 —— 精简版
+#
+# 最小可用配置：直接拉取 Docker Hub 镜像（suantea/asuan-keeper），
+# 无注释，复制即用。完整版（含各项说明）见 docker-compose.remote.yaml。
+#
+# 用法:
+#   1. 本目录放好 asuan.json（复制 asuan.example.json 修改）
+#   2. docker compose up -d
+#   3. 浏览器打开 http://<NAS>:18084 进入网页控制台
+services:
+  hub:
+    image: suantea/asuan-keeper:latest
+    container_name: asuan-keeper
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./asuan.json:/etc/asuan/asuan.json
+      - ./syncthing-config:/var/syncthing/config
+      - ./data:/var/syncthing
+      - ./files:/sync
+    environment:
+      - STNOUPGRADE=1
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}

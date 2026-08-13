@@ -10,6 +10,7 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/asuan ./cmd/asuan
 
 FROM syncthing/syncthing:2.1.3
 COPY --from=build /out/asuan /usr/bin/asuan
-COPY entrypoint.sh /entrypoint.sh
+# context 为仓库根时，entrypoint.sh 在 deploy/hub/ 下
+COPY deploy/hub/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

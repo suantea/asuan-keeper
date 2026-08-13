@@ -14,18 +14,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # windows 走纯 Go（CGO=0，第一轮验证通过）；linux 的 systray/FUSE 需要 cgo
           - target: windows
             arch: amd64
             os: windows-latest
+            cgo: "0"
           - target: windows
             arch: arm64
             os: windows-latest
+            cgo: "0"
           - target: linux
             arch: amd64
             os: ubuntu-latest
+            cgo: "1"
           - target: linux
             arch: arm64
             os: ubuntu-latest
+            cgo: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -34,15 +39,15 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # build-dist.sh 打包需要 zip/unzip；linux 的 systray/FUSE 需要 cgo，装 gcc/gtk 头
+      # build-dist.sh 打包需要 zip/unzip；linux 的 systray/FUSE 需要 cgo，装 gcc/gtk/fuse 头
       - name: Install build deps (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y zip unzip gcc libgtk-3-dev
+        run: sudo apt-get update && sudo apt-get install -y zip unzip gcc libgtk-3-dev libfuse-dev
 
       - name: Build dist
         shell: bash
         env:
-          CGO_ENABLED: "1"
+          CGO_ENABLED: ${{ matrix.cgo }}
         run: bash scripts/build-dist.sh ${{ matrix.target }} ${{ matrix.arch }}
 
       - name: Upload artifact

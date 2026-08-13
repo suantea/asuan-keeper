@@ -111,13 +111,13 @@ NOTICE         Syncthing 等第三方声明
 
 开发环境仅验证到"编译 + 单机运行 + API"层面；以下项需在真实机器上逐条确认（勾选即通过）：
 
-- [ ] **Windows 客户端**：程序目录放 `asuan.exe` + `syncthing.exe`，`asuan init` 后编辑 `asuan.json`，`asuan run` 启动
-- [ ] **Windows 托盘交互**：启动后最小化到托盘；左键单击弹出网页控制台（进度），左键双击打开配置，右键菜单可退出/暂停-同步
-- [ ] **Windows 防火墙**：管理员执行 `asuan firewall add` 后重启 `asuan run`，确认不再弹"允许访问"对话框
-- [ ] **占位符（Windows/WinFsp）**：安装 WinFsp，配置 `placeholder.mount` 后释放文件夹，虚拟层可见对端文件、访问触发水合
-- [ ] **Win ↔ NAS 双端联调**：按 `deploy/hub/README.md` 部署 hub（含防火墙放行），两端互填设备 ID，文件双向同步、删除进回收站
-- [ ] **macOS 客户端**：按 `deploy/MAC.md` 安装 macFUSE、本机构建，托盘与占位符（macFUSE 挂载/水合）实机验证
-- [ ] **远程限速**：配置 `remote` 段 + WireGuard 隧道后，远程连接按 `limit_kbps` 限速、LAN 直连满速
+-**Windows 客户端**：程序目录放 `asuan.exe` + `syncthing.exe`，`asuan init` 后编辑 `asuan.json`，`asuan run` 启动
+- **Windows 托盘交互**：启动后最小化到托盘；左键单击弹出网页控制台（进度），左键双击打开配置，右键菜单可退出/暂停-同步
+- **Windows 防火墙**：管理员执行 `asuan firewall add` 后重启 `asuan run`，确认不再弹"允许访问"对话框
+-  **占位符（Windows/WinFsp）**：安装 WinFsp，配置 `placeholder.mount` 后释放文件夹，虚拟层可见对端文件、访问触发水合
+-  **Win ↔ NAS 双端联调**：按 `deploy/hub/README.md` 部署 hub（含防火墙放行），两端互填设备 ID，文件双向同步、删除进回收站
+-  **macOS 客户端**：按 `deploy/MAC.md` 安装 macFUSE、本机构建，托盘与占位符（macFUSE 挂载/水合）实机验证
+- **远程限速**：配置 `remote` 段 + WireGuard 隧道后，远程连接按 `limit_kbps` 限速、LAN 直连满速
 
 ## 许可与声明
 

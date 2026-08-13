@@ -15,6 +15,8 @@ jobs:
       matrix:
         include:
           # windows 走纯 Go（CGO=0，已验证通过）；linux 的 systray/FUSE 需要 cgo
+          # （linux-arm64 桌面端不在支持范围：README 为 Windows/macOS/NAS-Docker；
+          #   arm64 走 NAS Docker 镜像，见 docker job）
           - target: windows
             arch: amd64
             os: windows-latest
@@ -28,11 +30,6 @@ jobs:
             os: ubuntu-latest
             cgo: "1"
             cc: gcc
-          - target: linux
-            arch: arm64
-            os: ubuntu-latest
-            cgo: "1"
-            cc: aarch64-linux-gnu-gcc
     steps:
       - uses: actions/checkout@v4
 

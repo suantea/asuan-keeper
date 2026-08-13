@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY go.mod go.sum ./
 COPY internal ./internal
 COPY cmd ./cmd
+# go.mod 里 replace github.com/getlantern/systray => ./third_party/systray，
+# 构建阶段必须把 third_party 一起复制进去
+COPY third_party ./third_party
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /out/asuan ./cmd/asuan
 
 FROM syncthing/syncthing:2.1.3

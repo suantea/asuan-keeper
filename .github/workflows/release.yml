@@ -76,7 +76,8 @@ jobs:
       - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.zip
+          # windows 产物是 tar.gz（runner 无 zip 回退），linux 是 zip，都要发布
+          files: artifacts/**/*
           generate_release_notes: true
 
   docker:

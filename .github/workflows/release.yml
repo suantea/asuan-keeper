@@ -34,13 +34,15 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # build-dist.sh 打包需要 zip/unzip
-      - name: Install zip tools (Linux)
+      # build-dist.sh 打包需要 zip/unzip；linux 的 systray/FUSE 需要 cgo，装 gcc/gtk 头
+      - name: Install build deps (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y zip unzip
+        run: sudo apt-get update && sudo apt-get install -y zip unzip gcc libgtk-3-dev
 
       - name: Build dist
         shell: bash
+        env:
+          CGO_ENABLED: "1"
         run: bash scripts/build-dist.sh ${{ matrix.target }} ${{ matrix.arch }}
 
       - name: Upload artifact
@@ -103,7 +105,9 @@ jobs:
         if: env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != ''
         uses: docker/build-push-action@v6
         with:
-          context: ./deploy/hub
+          # Dockerfile 里 COPY cmd/internal/go.mod 引用仓库根目录文件，
+          # 因此 context 必须指向仓库根，file 单独指向 deploy/hub/Dockerfile。
+          context: .
           file: ./deploy/hub/Dockerfile
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           tags: |

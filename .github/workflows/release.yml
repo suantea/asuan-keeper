@@ -68,6 +68,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+          # 只下载 asuan-* 发行产物；排除 docker job 的 buildx 缓存 artifact
+          # （suantea~asuan-keeper~*.dockerbuild，默认下载全部时会拉取它并失败）
+          pattern: asuan-*
+          merge-multiple: true
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2

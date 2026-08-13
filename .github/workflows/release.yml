@@ -71,6 +71,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # 未配置 Docker Hub secrets 时跳过（不阻塞 release）
+    if: secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != ''
     steps:
       - uses: actions/checkout@v4
 

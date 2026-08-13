@@ -12,7 +12,7 @@
 
 ## 快速开始（P0：基础同步）
 
-端上程序目录放 `asuan.exe` + `syncthing.exe`，同目录建 `asuan.json`（可先 `asuan init` 生成）。
+**发行包开箱即用**：`asuan` 与同步引擎 `syncthing` 已一并打包进发行包（绿色便携，无需单独下载/安装引擎）。解压后程序目录为 `asuan.exe` + `syncthing.exe`，同目录建 `asuan.json`（可先 `asuan init` 生成）。
 
 1. **init**：生成默认配置并初始化同步引擎，输出本机设备 ID
    ```
@@ -27,6 +27,8 @@
 5. **停止**：`asuan stop`
 
 设备交换：每端 `asuan status` 显示的设备 ID 填入其他端的 `peers`。
+
+> 引擎版本对照与更新：发行包内置的引擎版本见 `asuan engine`；升级由 agent 统一管理（`asuan engine-update`），小版本换二进制即可，无需改 asuan 自身。
 
 ## 文件布局（配置与引擎分离）
 
@@ -122,7 +124,7 @@ NOTICE         Syncthing 等第三方声明
 ## 许可与声明
 
 - asuan 自身代码采用 Mozilla Public License 2.0（MPL-2.0）授权。
-- 本项目运行时会调用第三方组件 **Syncthing**（MPL-2.0，<https://syncthing.net/>）。Syncthing 以独立 sidecar 进程方式被调用，未修改其源代码；相关来源、许可证与分发要求见 [NOTICE](NOTICE)。
+- 本项目运行时调用第三方组件 **Syncthing**（MPL-2.0，<https://syncthing.net/>），并以**二进制随发行包内置**（sidecar 进程方式调用，未修改其源代码）。按 MPL-2.0 分发要求，发行包随附官方包内 `LICENSE.txt`、`AUTHORS.txt`、`README.txt` 及本项目 [NOTICE](NOTICE)，声明其来源与许可证；相关详情见 [NOTICE](NOTICE) 与 [deploy/ENGINE.md](deploy/ENGINE.md)。
 - 引擎版本对照与更新方式见 `asuan engine`（agent 更新说明）。
 
 ## 组件

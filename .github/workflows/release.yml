@@ -55,8 +55,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: asuan-${{ matrix.target }}-${{ matrix.arch }}
-          # windows runner 无 zip 命令，build-dist.sh 会回退为 tar.gz，两者都上传
-          path: dist/*
+          # 只上传压缩包（windows runner 无 zip 命令，build-dist.sh 回退为 tar.gz），
+          # 避免把展开的发行目录（asuan.exe/NOTICE/README 等）也传上去
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
 
   release:
     needs: build

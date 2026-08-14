@@ -97,6 +97,73 @@ func TestApplyFoldersIdempotent(t *testing.T) {
 	}
 }
 
+func TestApplyFoldersCustomVersioning(t *testing.T) {
+	full := fakeConfig()
+	if err := applyFolders(full, []config.Folder{
+		{
+			ID: "docs", Path: "D:/Sync/docs",
+			Versioning: &config.FolderVersioning{
+				Type:   "simple",
+				Params: map[string]any{"keep": 5},
+			},
+		},
+	}, "SELF", nil); err != nil {
+		t.Fatal(err)
+	}
+	var folders []map[string]any
+	_ = json.Unmarshal(full["folders"], &folders)
+	ver, _ := folders[0]["versioning"].(map[string]any)
+	if ver["type"] != "simple" {
+		t.Fatalf("应使用配置的 versioning 类型 simple, got %+v", ver)
+	}
+	params, _ := ver["params"].(map[string]any)
+	if params["keep"] != float64(5) {
+		t.Fatalf("versioning params 应透传 keep=5, got %+v", params)
+	}
+}
+
+func TestApplyFoldersVersioningEmptyTypeFallsBack(t *testing.T) {
+	full := fakeConfig()
+	if err := applyFolders(full, []config.Folder{
+		{ID: "docs", Path: "D:/Sync/docs", Versioning: &config.FolderVersioning{}},
+	}, "SELF", nil); err != nil {
+		t.Fatal(err)
+	}
+	var folders []map[string]any
+	_ = json.Unmarshal(full["folders"], &folders)
+	ver, _ := folders[0]["versioning"].(map[string]any)
+	if ver["type"] != "trashcan" {
+		t.Fatalf("type 为空应回退 trashcan, got %+v", ver)
+	}
+}
+
+func TestApplyFoldersMaxConflicts(t *testing.T) {
+	full := fakeConfig()
+	if err := applyFolders(full, []config.Folder{
+		{ID: "docs", Path: "D:/Sync/docs", MaxConflicts: 20},
+	}, "SELF", nil); err != nil {
+		t.Fatal(err)
+	}
+	var folders []map[string]any
+	_ = json.Unmarshal(full["folders"], &folders)
+	if folders[0]["maxConflicts"] != float64(20) {
+		t.Fatalf("maxConflicts 应透传 20, got %+v", folders[0]["maxConflicts"])
+	}
+
+	// 未配置时不应出现该字段（引擎默认值生效）
+	full = fakeConfig()
+	if err := applyFolders(full, []config.Folder{
+		{ID: "docs2", Path: "D:/Sync/docs2"},
+	}, "SELF", nil); err != nil {
+		t.Fatal(err)
+	}
+	var folders2 []map[string]any
+	_ = json.Unmarshal(full["folders"], &folders2)
+	if _, ok := folders2[0]["maxConflicts"]; ok {
+		t.Fatalf("未配置时不应输出 maxConflicts, got %+v", folders2[0])
+	}
+}
+
 func TestApplyDevicesRemoteLimit(t *testing.T) {
 	full := fakeConfig()
 	peers := []config.Peer{

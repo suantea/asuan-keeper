@@ -16,6 +16,10 @@ const (
 	PolicyOff   = "off"   // 本设备不安装/不使用该文件夹
 )
 
+// DefaultTCPPort 是局域网同步端口默认值：各端开箱即一致，
+// 无需每台设备单独配置；仍可显式设为 0 表示随机端口（隐蔽性更好）。
+const DefaultTCPPort = 44312
+
 var validPolicies = map[string]bool{PolicySync: true, PolicyLocal: true, PolicyOff: true}
 
 type Config struct {
@@ -34,10 +38,10 @@ type Config struct {
 // Remote 远程访问配置（P2）。启用后对端可经 WireGuard 隧道（UDP 443
 // 伪装 QUIC）跨网段同步；远程连接按 limit_kbps 限速，LAN 直连不受限。
 type Remote struct {
-	Enable      bool   `json:"enable"`       // 启用远程（WireGuard 隧道）访问
-	Endpoint    string `json:"endpoint"`     // 隧道端点：主机名或 IP（如 wg.example.com）
-	LimitKbps   int    `json:"limit_kbps"`   // 远程限速 kbps，0=不限
-	LanFullSpeed bool  `json:"lan_full_speed"` // LAN 直连始终满速，不受远程限速影响
+	Enable       bool   `json:"enable"`         // 启用远程（WireGuard 隧道）访问
+	Endpoint     string `json:"endpoint"`       // 隧道端点：主机名或 IP（如 wg.example.com）
+	LimitKbps    int    `json:"limit_kbps"`     // 远程限速 kbps，0=不限
+	LanFullSpeed bool   `json:"lan_full_speed"` // LAN 直连始终满速，不受远程限速影响
 }
 
 // Placeholder 占位符虚拟层（P1）。挂载点为空表示不启用；
@@ -82,6 +86,19 @@ type Folder struct {
 	Label  string `json:"label"`
 	Path   string `json:"path"`
 	Policy string `json:"policy"`
+
+	// Versioning 可选版本控制策略；nil 时使用默认（trashcan 回收站，保留 30 天）。
+	Versioning *FolderVersioning `json:"versioning,omitempty"`
+	// MaxConflicts 保留的冲突副本数（.sync-conflict-*）；0 表示用引擎默认值（10）。
+	MaxConflicts int `json:"max_conflicts,omitempty"`
+}
+
+// FolderVersioning 对应 syncthing 文件夹的 versioning 配置。
+// Type 支持 trashcan / simple / staggered / external；Params 透传各
+// 类型的参数（trashcan 用 cleanoutDays，simple 用 keep 等）。
+type FolderVersioning struct {
+	Type   string         `json:"type"`
+	Params map[string]any `json:"params,omitempty"`
 }
 
 func Default() *Config {
@@ -102,7 +119,7 @@ func Default() *Config {
 			DisableGlobalDiscovery: true,
 			DisableRelay:           true,
 			DisableNAT:             true,
-			TCPPort:                0,
+			TCPPort:                DefaultTCPPort,
 		},
 		Remote: Remote{
 			LanFullSpeed: true,

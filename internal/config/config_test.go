@@ -15,6 +15,70 @@ func TestDefaultValid(t *testing.T) {
 	}
 }
 
+func TestDefaultTCPPort(t *testing.T) {
+	c := Default()
+	if c.Stealth.TCPPort != DefaultTCPPort {
+		t.Fatalf("默认同步端口应为 %d, got %d", DefaultTCPPort, c.Stealth.TCPPort)
+	}
+	if DefaultTCPPort <= 0 || DefaultTCPPort > 65535 {
+		t.Fatalf("DefaultTCPPort 非法: %d", DefaultTCPPort)
+	}
+}
+
+func TestFolderVersioningRoundtrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "asuan.json")
+	c := Default()
+	c.Folders = []Folder{
+		{
+			ID: "docs", Label: "文档", Path: "D:/Sync/docs", Policy: PolicySync,
+			Versioning: &FolderVersioning{
+				Type:   "simple",
+				Params: map[string]any{"keep": 5},
+			},
+			MaxConflicts: 20,
+		},
+	}
+	if err := c.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := got.Folders[0]
+	if f.Versioning == nil || f.Versioning.Type != "simple" {
+		t.Fatalf("versioning 配置未保留: %+v", f.Versioning)
+	}
+	if got := f.Versioning.Params["keep"]; got != float64(5) {
+		t.Fatalf("versioning params 未保留: %v", got)
+	}
+	if f.MaxConflicts != 20 {
+		t.Fatalf("max_conflicts 未保留: %d", f.MaxConflicts)
+	}
+}
+
+func TestFolderVersioningOmitEmpty(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "asuan.json")
+	c := Default()
+	c.Folders = []Folder{{ID: "docs", Path: "D:/Sync/docs", Policy: PolicySync}}
+	if err := c.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := got.Folders[0]
+	if f.Versioning != nil {
+		t.Fatalf("未配置 versioning 应为 nil, got %+v", f.Versioning)
+	}
+	if f.MaxConflicts != 0 {
+		t.Fatalf("未配置 max_conflicts 应为 0, got %d", f.MaxConflicts)
+	}
+}
+
 func TestPolicyInvalid(t *testing.T) {
 	c := Default()
 	c.Folders = []Folder{{ID: "f1", Path: "C:/x", Policy: "bad"}}

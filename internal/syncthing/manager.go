@@ -437,7 +437,7 @@ func applyFolders(full map[string]json.RawMessage, folders []config.Folder, self
 			}
 			continue
 		}
-		cur = append(cur, map[string]any{
+		entry := map[string]any{
 			"id":               f.ID,
 			"label":            f.Label,
 			"path":             f.Path,
@@ -447,16 +447,40 @@ func applyFolders(full map[string]json.RawMessage, folders []config.Folder, self
 			"fsWatcherDelayS":  10,
 			"ignorePerms":      true,
 			"autoNormalize":    true,
-			"versioning": map[string]any{
-				"type":   "trashcan",
-				"params": map[string]string{"cleanoutDays": "30"},
-			},
-			"devices": deviceList,
-		})
+			"versioning":       defaultVersioning(),
+			"devices":          deviceList,
+		}
+		if f.MaxConflicts > 0 {
+			entry["maxConflicts"] = f.MaxConflicts
+		}
+		if f.Versioning != nil {
+			entry["versioning"] = folderVersioning(f.Versioning)
+		}
+		cur = append(cur, entry)
 	}
 	b, _ := json.Marshal(cur)
 	full["folders"] = b
 	return nil
+}
+
+// defaultVersioning 返回缺省版本控制：trashcan 回收站，保留 30 天。
+func defaultVersioning() map[string]any {
+	return map[string]any{
+		"type":   "trashcan",
+		"params": map[string]string{"cleanoutDays": "30"},
+	}
+}
+
+// folderVersioning 按配置渲染 versioning 段；type 为空时回退缺省。
+func folderVersioning(v *config.FolderVersioning) map[string]any {
+	if v == nil || v.Type == "" {
+		return defaultVersioning()
+	}
+	ver := map[string]any{"type": v.Type}
+	if len(v.Params) > 0 {
+		ver["params"] = v.Params
+	}
+	return ver
 }
 
 // mergeFolderDevices 向已有文件夹的 devices 列表补充缺失的对端设备。

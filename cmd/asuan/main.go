@@ -254,12 +254,24 @@ func cmdFirewall(configPath string, args []string) error {
 			fmt.Println("stealth.tcp_port 为 0(随机端口),无法预置规则;请先在 asuan.json 固定端口")
 			return nil
 		}
+		if !firewall.IsAdmin() {
+			fmt.Println("当前不是管理员身份,无法直接写入防火墙规则。可选方案:")
+			fmt.Println("  1. 首次弹窗时勾选「专用网络」→ 点「允许访问」(推荐,一次落库)")
+			fmt.Println("  2. 以管理员身份运行一次: asuan firewall add")
+			fmt.Println("  3. Windows 安全中心 → 允许应用通过防火墙 → 添加 syncthing.exe")
+			fmt.Println("asuan 本身无需管理员权限即可运行,此规则仅用于避免弹窗。")
+			return nil
+		}
 		if err := firewall.Add(port); err != nil {
 			return err
 		}
 		fmt.Printf("已放行 TCP %d(规则 %s)\n", port, firewall.RuleName(port))
 		return nil
 	case "remove":
+		if !firewall.IsAdmin() {
+			fmt.Println("当前不是管理员身份,无法删除防火墙规则。请以管理员身份运行: asuan firewall remove")
+			return nil
+		}
 		if err := firewall.Remove(port); err != nil {
 			return err
 		}

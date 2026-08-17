@@ -4,6 +4,11 @@ package firewall
 
 import "fmt"
 
+// IsAdmin 非 Windows 平台无管理员概念（UID 0 视为管理员）。
+func IsAdmin() bool {
+	return false
+}
+
 // Add 非 Windows 平台占位:Linux(UFW)/macOS 由部署脚本或系统防火墙管理,
 // 返回明确提示而非静默失败。
 func Add(port int) error {

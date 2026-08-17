@@ -6,7 +6,32 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"golang.org/x/sys/windows"
 )
+
+// IsAdmin 返回当前进程是否以管理员权限运行（供防火墙等提权操作降级提示）。
+//
+// 注意：UAC 下「以管理员运行」的进程其 token 已提升（elevated），而
+// Administrators 组成员关系可能被标记为 deny-only，导致 IsMember 误判为
+// false，因此这里以 IsElevated 为准（它反映 token 是否已提升）。
+func IsAdmin() bool {
+	token, err := windows.OpenCurrentProcessToken()
+	if err != nil {
+		return false
+	}
+	defer token.Close()
+	if token.IsElevated() {
+		return true
+	}
+	// 回退：非提升 token 也检查 Administrators 组成员（少数受限环境）。
+	adminSID, err := windows.CreateWellKnownSid(windows.WinBuiltinAdministratorsSid)
+	if err != nil {
+		return false
+	}
+	member, err := token.IsMember(adminSID)
+	return err == nil && member
+}
 
 // Add 添加入站 TCP 放行规则(仅端口,不暴露程序路径)。
 // 需要管理员权限:netsh 失败时提示以管理员运行。

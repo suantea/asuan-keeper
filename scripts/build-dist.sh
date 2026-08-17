@@ -103,16 +103,25 @@ cp "$ROOT/README.md" "$DIST/"
 if [ -f "$ROOT/deploy/hub/asuan.example.json" ]; then
   cp "$ROOT/deploy/hub/asuan.example.json" "$DIST/asuan.example.json"
 fi
+# Windows 分发附带双击启动器（自动 init + run + 打开控制台）
+if [ "$TARGET_OS" = "windows" ] && [ -f "$ROOT/deploy/启动-asuan.bat" ]; then
+  cp "$ROOT/deploy/启动-asuan.bat" "$DIST/启动-asuan.bat"
+fi
 # 快速开始提示
 cat > "$DIST/README-QUICKSTART.txt" <<'QS'
 asuan 快速开始
 ================
 1. 同目录已有 asuan 与 syncthing 引擎,无需额外下载。
-2. 首次运行: asuan init      (生成 asuan.json 并输出本机设备 ID)
-3. 编辑 asuan.json: 填 name / peers(对端设备ID+地址) / folders(id/path/policy)
-4. 预置防火墙规则(Windows,避免弹窗,需管理员): asuan firewall add
-5. 启动: asuan run           (最小化到托盘:单击看进度/双击开配置/右键菜单)
-6. 停止: asuan stop
+2. 首次运行: 双击「启动-asuan.bat」即可(自动 init + run + 打开网页控制台)
+   或命令行: asuan init  (生成 asuan.json 并输出本机设备 ID)
+3. 网页控制台 http://127.0.0.1:18084 提供分字段配置表单
+   (对端 peers / 文件夹 folders / 网络隐蔽 均可可视化编辑,保存自动生效);
+   高级项可切换「JSON 编辑」直接修改 asuan.json。
+4. 无需管理员权限: asuan 使用高位端口且数据写在程序目录,普通用户即可运行。
+5. 防火墙弹窗(可选规避): 首次运行 syncthing 弹「Windows Defender 已阻止」时,
+   勾选「专用网络」→「允许访问」即可一次放行;
+   或以管理员运行一次 `asuan firewall add` 预置规则(仅放行同步端口,不暴露程序路径)。
+6. 停止: asuan stop  (托盘右键菜单也可退出)
 设备交换: 每端 asuan status 显示的设备 ID 填入其他端的 peers。
 QS
 

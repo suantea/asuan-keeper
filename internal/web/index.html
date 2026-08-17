@@ -21,6 +21,7 @@
   .card .v{font-size:20px;font-weight:600}
   .card .v.green{color:var(--green)}.card .v.yellow{color:var(--yellow)}.card .v.red{color:var(--red)}.card .v.blue{color:var(--blue)}
   h2{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:24px 0 10px}
+  h3{font-size:13px;color:var(--text);margin:0 0 10px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
@@ -43,6 +44,7 @@
   button.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
   button:disabled{opacity:.5;cursor:not-allowed}
   button.small{padding:3px 10px;font-size:12px}
+  button.danger{background:rgba(248,81,73,.15);border-color:rgba(248,81,73,.4);color:var(--red)}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
   .grow{flex:1}
   textarea{width:100%;height:360px;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px;font:12.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre;resize:vertical}
@@ -52,6 +54,27 @@
   #toast.ok{border-color:rgba(63,185,80,.5)}#toast.err{border-color:rgba(248,81,73,.5)}
   .spin{animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* ---- 分字段配置表单 ---- */
+  .fcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .fcard .ftools{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .frow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}
+  .fld{display:flex;flex-direction:column;gap:4px}
+  .fld label{font-size:11px;color:var(--muted)}
+  .fld input[type=text],.fld input[type=number]{background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:13px;min-width:120px}
+  .fld input[type=checkbox]{width:16px;height:16px;accent-color:#1f6feb}
+  .fld input:focus{outline:1px solid #1f6feb}
+  .fcheck{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:13px}
+  .fcheck input{width:15px;height:15px;accent-color:#1f6feb}
+  .tbl-edit{width:100%;border-collapse:collapse}
+  .tbl-edit th{background:var(--panel2);color:var(--muted);font-weight:500;padding:7px 9px;border-bottom:1px solid var(--line);font-size:12px;text-align:left}
+  .tbl-edit td{padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .tbl-edit input{width:100%;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px}
+  .tbl-edit input[type=checkbox]{width:15px;height:15px;accent-color:#1f6feb}
+  .tbl-edit select{width:100%;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px}
+  .mode-tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .mode-tabs button{border:none;border-radius:0;background:var(--panel2)}
+  .mode-tabs button.on{background:#1f6feb;color:#fff}
+  .hint{color:var(--muted);font-size:12px}
 </style>
 
 <header>
@@ -89,12 +112,76 @@
 
 <h2>配置</h2>
 <div class="row">
+  <span class="mode-tabs">
+    <button id="tab-form" class="on">表单编辑</button>
+    <button id="tab-json">JSON 编辑</button>
+  </span>
   <button id="load" class="primary">编辑当前配置</button>
   <button id="save" disabled>保存并重载</button>
   <button id="reload">仅重载引擎</button>
-  <span class="sub" id="cfgmeta" style="margin:0">点击「编辑当前配置」后可直接修改 JSON</span>
+  <span class="sub" id="cfgmeta" style="margin:0">点击「编辑当前配置」加载</span>
 </div>
-<textarea id="cfg" spellcheck="false" placeholder="（加载后在此编辑 asuan.json 配置）"></textarea>
+
+<!-- ===== 分字段表单模式 ===== -->
+<div id="formcfg" style="display:block">
+  <div class="fcard">
+    <h3>基本信息</h3>
+    <div class="frow">
+      <div class="fld"><label>设备名称（name）</label><input type="text" id="f-name" placeholder="asuan-device"></div>
+      <div class="fld"><label>网页控制台监听（web.bind）</label><input type="text" id="f-webbind" placeholder="127.0.0.1:18084"></div>
+      <div class="fld"><label>syncthing 管理界面（gui_bind）</label><input type="text" id="f-guibind" placeholder="127.0.0.1:8384"></div>
+    </div>
+  </div>
+
+  <div class="fcard">
+    <h3>网络与隐蔽（stealth）</h3>
+    <div class="frow">
+      <div class="fld"><label>同步端口（tcp_port，0=随机）</label><input type="number" id="f-tcpport" min="0" max="65535" placeholder="44312"></div>
+    </div>
+    <div class="fcheck"><input type="checkbox" id="f-upnp"><span>禁用 UPnP 端口映射</span></div>
+    <div class="fcheck"><input type="checkbox" id="f-ldisc"><span>禁用本地发现（局域网广播）</span></div>
+    <div class="fcheck"><input type="checkbox" id="f-gdisc"><span>禁用全局发现（公网发现服务器）</span></div>
+    <div class="fcheck"><input type="checkbox" id="f-relay"><span>禁用中继</span></div>
+    <div class="fcheck"><input type="checkbox" id="f-nat"><span>禁用 NAT 穿透</span></div>
+  </div>
+
+  <div class="fcard">
+    <h3>远程访问（remote，WireGuard 隧道）</h3>
+    <div class="fcheck"><input type="checkbox" id="f-renable"><span>启用远程访问</span></div>
+    <div class="frow">
+      <div class="fld"><label>隧道端点（endpoint，启用时必填）</label><input type="text" id="f-rendpoint" placeholder="wg.example.com"></div>
+      <div class="fld"><label>远程限速 kbps（0=不限）</label><input type="number" id="f-rlimit" min="0" placeholder="0"></div>
+      <div class="fcheck" style="align-self:center"><input type="checkbox" id="f-rlanfull"><span>LAN 直连满速，不受远程限速</span></div>
+    </div>
+  </div>
+
+  <div class="fcard">
+    <h3>对端设备（peers）</h3>
+    <table class="tbl-edit">
+      <thead><tr><th style="width:18%">名称</th><th style="width:34%">设备 ID（对端 8×7 字符）</th><th style="width:22%">地址 host:port</th><th style="width:12%">MAC（可选）</th><th style="width:8%">远程</th><th style="width:6%"></th></tr></thead>
+      <tbody id="peers-edit"></tbody>
+    </table>
+    <div class="ftools"><button id="peer-add" class="small">+ 添加对端</button></div>
+  </div>
+
+  <div class="fcard">
+    <h3>同步文件夹（folders）</h3>
+    <table class="tbl-edit">
+      <thead><tr><th style="width:14%">id</th><th style="width:14%">名称 label</th><th style="width:26%">路径 path</th><th style="width:9%">策略 policy</th><th style="width:11%">版本管理</th><th style="width:12%">保留天数</th><th style="width:6%"></th></tr></thead>
+      <tbody id="folders-edit"></tbody>
+    </table>
+    <div class="ftools"><button id="folder-add" class="small">+ 添加文件夹</button></div>
+    <div class="hint" style="margin-top:8px">策略：sync=双向同步（推荐）/ local=仅本机 / off=不参与同步。版本管理：trashcan=回收站（按保留天数清空）/ staggered=分层保留 / 空=不保留历史版本。</div>
+  </div>
+
+  <div class="fcard">
+    <h3>高级（JSON 编辑）</h3>
+    <div class="hint">syncthing 二进制路径、数据目录、GUI API Key、hub、占位符挂载点等高级项请切换到「JSON 编辑」修改。</div>
+  </div>
+</div>
+
+<!-- ===== JSON 模式 ===== -->
+<textarea id="cfg" spellcheck="false" style="display:none" placeholder="（切换到 JSON 编辑后在此修改 asuan.json）"></textarea>
 <div class="sub" id="err" style="margin-top:8px;color:var(--red)"></div>
 
 <div id="toast"></div>
@@ -102,6 +189,7 @@
 <script>
 const $ = id => document.getElementById(id);
 let data = null;
+let cfgData = null; // 最近一次从 /api/config 加载的原始配置
 
 function fmt(n){ n=Number(n)||0; return n>=10000 ? n.toLocaleString('zh-CN') : String(n); }
 function size(n){ n=Number(n)||0;
@@ -189,25 +277,152 @@ async function status(){
     <td class="id-cell">${esc(p.address||'—')}</td>
   </tr>`).join(''):`<tr><td colspan="4" style="color:var(--muted)">尚未配置对端设备</td></tr>`;
 }
+
+// ---------- 分字段表单 ----------
+let formMode = true;
+function setMode(m){
+  formMode = m==='form';
+  $('tab-form').className = formMode?'on':'';
+  $('tab-json').className = formMode?'':'on';
+  $('formcfg').style.display = formMode?'block':'none';
+  $('cfg').style.display = formMode?'none':'block';
+  if(!formMode && cfgData) $('cfg').value = JSON.stringify(cfgData,null,2);
+}
+$('tab-form').onclick = ()=>setMode('form');
+$('tab-json').onclick = ()=>setMode('json');
+
+function fillForm(c){
+  $('f-name').value = c.name||'';
+  $('f-webbind').value = (c.web&&c.web.bind)||'127.0.0.1:18084';
+  $('f-guibind').value = (c.syncthing&&c.syncthing.gui_bind)||'127.0.0.1:8384';
+  const st=(c.stealth)||{};
+  $('f-tcpport').value = st.tcp_port||0;
+  $('f-upnp').checked = st.disable_upnp!==false;
+  $('f-ldisc').checked = st.disable_local_discovery!==false;
+  $('f-gdisc').checked = st.disable_global_discovery!==false;
+  $('f-relay').checked = st.disable_relay!==false;
+  $('f-nat').checked = st.disable_nat!==false;
+  const rm=(c.remote)||{};
+  $('f-renable').checked = !!rm.enable;
+  $('f-rendpoint').value = rm.endpoint||'';
+  $('f-rlimit').value = rm.limit_kbps||0;
+  $('f-rlanfull').checked = rm.lan_full_speed!==false;
+  renderPeers((c.peers||[]));
+  renderFolders((c.folders||[]));
+}
+function collectForm(){
+  const c = cfgData ? JSON.parse(JSON.stringify(cfgData)) : {version:1, name:'', syncthing:{}, stealth:{}, remote:{}, web:{}, peers:[], folders:[]};
+  c.name = $('f-name').value.trim();
+  c.web = c.web||{}; c.web.bind = $('f-webbind').value.trim()||'127.0.0.1:18084';
+  c.syncthing = c.syncthing||{}; c.syncthing.gui_bind = $('f-guibind').value.trim()||'127.0.0.1:8384';
+  c.stealth = c.stealth||{};
+  c.stealth.disable_upnp = $('f-upnp').checked;
+  c.stealth.disable_local_discovery = $('f-ldisc').checked;
+  c.stealth.disable_global_discovery = $('f-gdisc').checked;
+  c.stealth.disable_relay = $('f-relay').checked;
+  c.stealth.disable_nat = $('f-nat').checked;
+  c.stealth.tcp_port = Math.max(0, Math.min(65535, Number($('f-tcpport').value)||0));
+  c.remote = c.remote||{};
+  c.remote.enable = $('f-renable').checked;
+  c.remote.endpoint = $('f-rendpoint').value.trim();
+  c.remote.limit_kbps = Math.max(0, Number($('f-rlimit').value)||0);
+  c.remote.lan_full_speed = $('f-rlanfull').checked;
+  c.peers = [...document.querySelectorAll('#peers-edit tr')].map(tr=>{
+    const i=tr.dataset.i;
+    return {
+      name: $(`p-name-${i}`).value.trim(),
+      device_id: $(`p-did-${i}`).value.trim(),
+      address: $(`p-addr-${i}`).value.trim(),
+      mac: $(`p-mac-${i}`).value.trim(),
+      remote: $(`p-remote-${i}`).checked,
+    };
+  }).filter(p=>p.device_id||p.name||p.address);
+  c.folders = [...document.querySelectorAll('#folders-edit tr')].map(tr=>{
+    const i=tr.dataset.i;
+    const id=$(`fid-${i}`).value.trim(), path=$(`fpath-${i}`).value.trim(), label=$(`flabel-${i}`).value.trim();
+    if(!id && !path) return null;
+    const policy=$(`fpolicy-${i}`).value;
+    const vt=$(`fver-${i}`).value;
+    const f={id, label, path, policy};
+    if(vt==='trashcan'){ f.versioning={type:'trashcan', params:{cleanoutDays: String($(`fverdays-${i}`).value||'30')}}; }
+    else if(vt==='staggered'){ f.versioning={type:'staggered'}; }
+    else { delete f.versioning; }
+    return f;
+  }).filter(Boolean);
+  return c;
+}
+function renderPeers(peers){
+  const tb=$('peers-edit');
+  tb.innerHTML='';
+  peers.forEach((p,i)=>tb.appendChild(peerRow(p,i)));
+  if(!peers.length) tb.appendChild(peerRow({},0));
+}
+function peerRow(p,i){
+  const tr=document.createElement('tr'); tr.dataset.i=i;
+  tr.innerHTML=`<td><input id="p-name-${i}" value="${esc(p.name||'')}" placeholder="台式机"></td>
+    <td><input id="p-did-${i}" value="${esc(p.device_id||'')}" placeholder="AAAA-AAAA-...-AAAAA"></td>
+    <td><input id="p-addr-${i}" value="${esc(p.address||'')}" placeholder="192.168.1.20:44312"></td>
+    <td><input id="p-mac-${i}" value="${esc(p.mac||'')}" placeholder="（可选）"></td>
+    <td style="text-align:center"><input type="checkbox" id="p-remote-${i}" ${p.remote?'checked':''} title="该对端走远程隧道"></td>
+    <td><button class="small danger" onclick="this.closest('tr').remove();enableSave()">删除</button></td>`;
+  ['input','change'].forEach(ev=>tr.querySelectorAll('input').forEach(el=>el.addEventListener(ev,enableSave)));
+  return tr;
+}
+function renderFolders(folders){
+  const tb=$('folders-edit');
+  tb.innerHTML='';
+  folders.forEach((f,i)=>tb.appendChild(folderRow(f,i)));
+  if(!folders.length) tb.appendChild(folderRow({policy:'sync'},0));
+}
+function folderRow(f,i){
+  const vt=(f.versioning&&f.versioning.type)||'';
+  const days=(f.versioning&&f.versioning.params&&f.versioning.params.cleanoutDays)||'30';
+  const tr=document.createElement('tr'); tr.dataset.i=i;
+  tr.innerHTML=`<td><input id="fid-${i}" value="${esc(f.id||'')}" placeholder="docs"></td>
+    <td><input id="flabel-${i}" value="${esc(f.label||'')}" placeholder="文档"></td>
+    <td><input id="fpath-${i}" value="${esc(f.path||'')}" placeholder="D:\\sync\\docs"></td>
+    <td><select id="fpolicy-${i}">
+      <option value="sync" ${f.policy==='sync'?'selected':''}>sync</option>
+      <option value="local" ${f.policy==='local'?'selected':''}>local</option>
+      <option value="off" ${f.policy==='off'?'selected':''}>off</option>
+    </select></td>
+    <td><select id="fver-${i}">
+      <option value="" ${vt===''?'selected':''}>不保留</option>
+      <option value="trashcan" ${vt==='trashcan'?'selected':''}>回收站</option>
+      <option value="staggered" ${vt==='staggered'?'selected':''}>分层</option>
+    </select></td>
+    <td><input type="text" id="fverdays-${i}" value="${esc(days)}" placeholder="30"></td>
+    <td><button class="small danger" onclick="this.closest('tr').remove();enableSave()">删除</button></td>`;
+  ['input','change'].forEach(ev=>tr.querySelectorAll('input,select').forEach(el=>el.addEventListener(ev,enableSave)));
+  return tr;
+}
+$('peer-add').onclick=()=>{ const tb=$('peers-edit'); tb.appendChild(peerRow({},tb.children.length)); enableSave(); };
+$('folder-add').onclick=()=>{ const tb=$('folders-edit'); tb.appendChild(folderRow({policy:'sync'},tb.children.length)); enableSave(); };
+
 function enableSave(){
   $('save').disabled=false;
-  $('cfgmeta').textContent='已修改，点击「保存并重载」生效';
+  $('cfgmeta').textContent=formMode?'已修改，点击「保存并重载」生效':'已修改，点击「保存并重载」生效';
 }
+
 $('load').onclick=async function(){
   try{
-    const c=await getJSON('/api/config');
-    $('cfg').value=JSON.stringify(c,null,2);
-    $('cfgmeta').textContent='配置已加载（JSON 格式，保存后自动重载引擎）';
+    cfgData=await getJSON('/api/config');
+    fillForm(cfgData);
+    $('cfg').value=JSON.stringify(cfgData,null,2);
+    $('cfgmeta').textContent='配置已加载，可直接在表单中修改';
     $('save').disabled=true;
     toast('配置已加载','ok');
   }catch(e){ toast('读取配置失败：'+e.message,'err'); }
 };
 $('save').onclick=async function(){
-  let v; try{ v=JSON.parse($('cfg').value); }catch(e){ $('err').textContent='JSON 格式错误：'+e.message; return; }
+  let v;
+  try{
+    v = formMode ? collectForm() : JSON.parse($('cfg').value);
+  }catch(e){ $('err').textContent='配置格式错误：'+e.message; return; }
   $('err').textContent=''; $('save').disabled=true; $('save').textContent='保存中…';
   const d=await post('/api/config',JSON.stringify(v,null,2));
   $('save').textContent='保存并重载';
-  if(d.ok){ toast('已保存并重载引擎','ok'); setTimeout(status,1500); }
+  if(d.ok){ cfgData=v; toast('已保存并重载引擎','ok'); setTimeout(status,1500); }
   else{ $('save').disabled=false; toast('保存失败：'+(d.error||''),'err'); }
 };
 $('reload').onclick=async function(){
@@ -218,7 +433,6 @@ $('reload').onclick=async function(){
   else toast('重载失败：'+(d.error||''),'err');
 };
 $('refresh').onclick=status;
-$('cfg').addEventListener('input',enableSave);
 
 // 释放/水合操作（占位符）。hydrate 会等待对端拉回，期间禁用按钮。
 async function act(kind,folder){
@@ -241,5 +455,6 @@ async function actPath(kind,folder){
   else toast(`${verb}失败：${d.error||''}`,'err');
 }
 
+setMode('form');
 status(); setInterval(status,3000);
 </script>

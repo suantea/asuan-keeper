@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"atomgit.com/suantea/asuan-keeper/internal/procprio"
 )
 
 type Manager struct {
@@ -130,6 +131,8 @@ func (m *Manager) Start() error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("启动 syncthing 失败: %w", err)
 	}
+	// 后台 sidecar 设低优先级，避免抢占前台应用（Windows 生效，其他平台 no-op）。
+	procprio.SetBelowNormal(cmd.Process.Pid)
 	m.mu.Lock()
 	m.proc = cmd
 	m.mu.Unlock()

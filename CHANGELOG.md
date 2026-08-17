@@ -5,6 +5,10 @@
 
 ## 2026-08-17（未发版，已推 AtomGit main）
 
+- **feat(perf): sidecar 低优先级**
+  - 新增 internal/procprio：Windows 启动 syncthing 时设 Below Normal 调度优先级（OpenProcess+SetPriorityClass），避免抢占前台应用；其他平台 no-op。
+- **docs(ENGINE.md): config.xml 敏感字段收敛 + 协议指纹缓解**
+  - 新增「config.xml 敏感字段收敛」（GUI API Key 明文/0600 权限/数据目录改名指引）与「协议指纹与缓解」（证书/BEP 指纹 + 端口自定义/连接白名单/设备白名单/发现全关组合）。
 - **feat(efficiency): 压缩策略可配 + 日志瘦身 + 同步监控增强**
   - 传输压缩：config 新增 `syncthing.compression`（metadata 默认 / full 适合 WAN / off 局域网最快），applyDevices 统一应用到所有对端；表单「基本信息」可选。
   - 日志瘦身：`syncthing.log_max_mb`（默认 5MB），超限自动截断为 .1（syncthing 2.1.3 无 logLevel 字段，实测确认后改走大小轮转）。

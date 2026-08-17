@@ -5,6 +5,10 @@
 
 ## 2026-08-17（未发版，已推 AtomGit main）
 
+- **feat(stealth): 连接白名单（allowed_networks）**
+  - config 新增 `stealth.allowed_networks`（CIDR 或 IP 列表，空=不限制）；控制台表单「网络与隐蔽」可编辑。
+  - **网络层白名单走系统防火墙 remoteip**（`firewall add` 生成带 `remoteip=` 的入站规则，仅允许白名单网段访问同步端口；⚠️ 实测 syncthing 2.1.3 options **无 allowedNetworks 字段**，PUT 静默忽略，故不走 syncthing）。
+  - **设备级白名单**：applyDevices 收敛 devices 列表为「本机 + 已声明 peers」，清除 syncthing 自动发现/历史残留设备，减少 BEP 暴露面。
 - **feat(web): 控制台 UI 重构——状态总览/配置双页签 + 视觉美化**（`30ebfe5`）
   - 页面改为「状态总览 / 配置」双页签：状态卡片+文件夹+对端表格与配置表单分离，避免超长滚动、逻辑更清晰。
   - 顶栏加 logo/运行徽章/设备 ID；分区标题带色条与说明；卡片圆角阴影、表格悬停、统一按钮样式。

@@ -180,7 +180,9 @@
       <h3>网络与隐蔽 <span class="tag">stealth</span></h3>
       <div class="frow">
         <div class="fld"><label>同步端口（tcp_port，0=随机）</label><input type="number" id="f-tcpport" min="0" max="65535" placeholder="44312"></div>
+        <div class="fld" style="flex:1;min-width:220px"><label>连接白名单（allowed_networks，逗号分隔；空=不限制）</label><input type="text" id="f-allownets" placeholder="192.168.1.0/24, 10.0.0.5"></div>
       </div>
+      <div class="hint" style="margin-bottom:8px">仅接受白名单内的网段/主机连接，其余地址在 TCP 层即被拒绝，减少端口探测暴露面（如只放行局域网网段）。</div>
       <div class="fcheck"><input type="checkbox" id="f-upnp"><span>禁用 UPnP 端口映射</span></div>
       <div class="fcheck"><input type="checkbox" id="f-ldisc"><span>禁用本地发现（局域网广播）</span></div>
       <div class="fcheck"><input type="checkbox" id="f-gdisc"><span>禁用全局发现（公网发现服务器）</span></div>
@@ -352,6 +354,7 @@ function fillForm(c){
   $('f-guibind').value = (c.syncthing&&c.syncthing.gui_bind)||'127.0.0.1:8384';
   const st=(c.stealth)||{};
   $('f-tcpport').value = st.tcp_port||0;
+  $('f-allownets').value = (st.allowed_networks||[]).join(', ');
   $('f-upnp').checked = st.disable_upnp!==false;
   $('f-ldisc').checked = st.disable_local_discovery!==false;
   $('f-gdisc').checked = st.disable_global_discovery!==false;
@@ -377,6 +380,8 @@ function collectForm(){
   c.stealth.disable_relay = $('f-relay').checked;
   c.stealth.disable_nat = $('f-nat').checked;
   c.stealth.tcp_port = Math.max(0, Math.min(65535, Number($('f-tcpport').value)||0));
+  const nets = $('f-allownets').value.split(/[,，\s]+/).map(s=>s.trim()).filter(Boolean);
+  if (nets.length) c.stealth.allowed_networks = nets; else delete c.stealth.allowed_networks;
   c.remote = c.remote||{};
   c.remote.enable = $('f-renable').checked;
   c.remote.endpoint = $('f-rendpoint').value.trim();

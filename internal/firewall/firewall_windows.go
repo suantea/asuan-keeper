@@ -34,14 +34,19 @@ func IsAdmin() bool {
 }
 
 // Add 添加入站 TCP 放行规则(仅端口,不暴露程序路径)。
-// 需要管理员权限:netsh 失败时提示以管理员运行。
-func Add(port int) error {
+// networks 可选：仅允许这些网段/主机访问（CIDR 或 IP，逗号分隔），
+// 空=不限制（局域网全放行）。需要管理员权限:netsh 失败时提示以管理员运行。
+func Add(port int, networks []string) error {
 	if port <= 0 || port > 65535 {
 		return fmt.Errorf("非法端口: %d", port)
 	}
 	name := RuleName(port)
-	cmd := exec.Command("netsh", "advfirewall", "firewall", "add", "rule",
-		"name="+name, "dir=in", "action=allow", "protocol=TCP", "localport="+fmt.Sprint(port))
+	args := []string{"advfirewall", "firewall", "add", "rule",
+		"name=" + name, "dir=in", "action=allow", "protocol=TCP", "localport=" + fmt.Sprint(port)}
+	if len(networks) > 0 {
+		args = append(args, "remoteip="+strings.Join(networks, ","))
+	}
+	cmd := exec.Command("netsh", args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		msg := strings.TrimSpace(string(out))
 		return fmt.Errorf("添加防火墙规则失败(请以管理员身份运行): %w %s", err, msg)

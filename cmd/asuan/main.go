@@ -262,10 +262,14 @@ func cmdFirewall(configPath string, args []string) error {
 			fmt.Println("asuan 本身无需管理员权限即可运行,此规则仅用于避免弹窗。")
 			return nil
 		}
-		if err := firewall.Add(port); err != nil {
+		if err := firewall.Add(port, cfg.Stealth.AllowedNetworks); err != nil {
 			return err
 		}
-		fmt.Printf("已放行 TCP %d(规则 %s)\n", port, firewall.RuleName(port))
+		if len(cfg.Stealth.AllowedNetworks) > 0 {
+			fmt.Printf("已放行 TCP %d(规则 %s)，仅限白名单网段: %s\n", port, firewall.RuleName(port), strings.Join(cfg.Stealth.AllowedNetworks, ", "))
+		} else {
+			fmt.Printf("已放行 TCP %d(规则 %s)\n", port, firewall.RuleName(port))
+		}
 		return nil
 	case "remove":
 		if !firewall.IsAdmin() {

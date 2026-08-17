@@ -10,8 +10,8 @@ func IsAdmin() bool {
 }
 
 // Add 非 Windows 平台占位:Linux(UFW)/macOS 由部署脚本或系统防火墙管理,
-// 返回明确提示而非静默失败。
-func Add(port int) error {
+// 返回明确提示而非静默失败。networks 为可选 IP 白名单（忽略）。
+func Add(port int, networks []string) error {
 	return fmt.Errorf("当前平台不支持自动放行防火墙,请手动放行 TCP 端口 %d", port)
 }
 

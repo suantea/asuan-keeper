@@ -64,13 +64,14 @@ type Syncthing struct {
 }
 
 type Stealth struct {
-	DisableUPnP            bool `json:"disable_upnp"`
-	DisableLocalDiscovery  bool `json:"disable_local_discovery"`
-	DisableGlobalDiscovery bool `json:"disable_global_discovery"`
-	DisableRelay           bool `json:"disable_relay"`
-	DisableNAT             bool `json:"disable_nat"`
-	TCPPort                int  `json:"tcp_port"` // 0 = 随机（隐蔽性更好）
-	EnableUPnPNotUsed      bool `json:"-"`        // 占位防止误用
+	DisableUPnP            bool     `json:"disable_upnp"`
+	DisableLocalDiscovery  bool     `json:"disable_local_discovery"`
+	DisableGlobalDiscovery bool     `json:"disable_global_discovery"`
+	DisableRelay           bool     `json:"disable_relay"`
+	DisableNAT             bool     `json:"disable_nat"`
+	TCPPort                int      `json:"tcp_port"` // 0 = 随机（隐蔽性更好）
+	AllowedNetworks        []string `json:"allowed_networks,omitempty"` // 可选：仅接受这些网段/主机连接（空=不限制，CIDR 或 IP）
+	EnableUPnPNotUsed      bool     `json:"-"`        // 占位防止误用
 }
 
 type Peer struct {

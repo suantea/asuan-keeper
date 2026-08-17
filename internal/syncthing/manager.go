@@ -350,6 +350,9 @@ func applyStealth(full map[string]json.RawMessage, s config.Stealth) {
 	if s.TCPPort != 0 {
 		opts["listenAddresses"] = []string{fmt.Sprintf("tcp://0.0.0.0:%d", s.TCPPort)}
 	}
+	// 注意：syncthing 2.1.3 的 options 无 allowedNetworks 字段（PUT 静默忽略），
+	// 网络层 IP 白名单通过系统防火墙 remoteip 实现（见 firewall 包），
+	// 设备级白名单由 BEP 握手认证保证（devices 只含已声明对端）。
 	b, _ := json.Marshal(opts)
 	full["options"] = b
 }
@@ -399,9 +402,22 @@ func applyDevices(full map[string]json.RawMessage, peers []config.Peer, selfID, 
 			delete(d, "maxRecvKbps")
 		}
 	}
+	// 连接白名单：devices 列表只保留本机 + asuan 配置的 peers。
+	// syncthing 的 BEP 握手要求 device ID 在对方配置中，未配置设备无法
+	// 建立连接；这里进一步清掉 syncthing 自动发现/历史残留的设备记录，
+	// 使本机配置收敛为「只认已声明对端」，减少暴露面。
+	allowed := map[string]bool{}
+	if selfID != "" {
+		allowed[selfID] = true
+	}
+	for _, p := range peers {
+		allowed[p.DeviceID] = true
+	}
 	cur = cur[:0]
-	for _, d := range byID {
-		cur = append(cur, d)
+	for id, d := range byID {
+		if allowed[id] {
+			cur = append(cur, d)
+		}
 	}
 	b, _ := json.Marshal(cur)
 	full["devices"] = b

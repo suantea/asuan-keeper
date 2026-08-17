@@ -46,6 +46,16 @@ func New(cfg *config.Config, exeDir string) *Manager {
 				break
 			}
 		}
+	} else if !filepath.IsAbs(exe) {
+		// 相对路径：优先解析为程序目录下的绝对路径（如 rename 产生的
+		// "syncw.exe"）。Go 1.19+ 的 exec.Command 拒绝执行不带 ./ 前缀的
+		// 相对路径可执行文件（"cannot run executable found relative to
+		// current directory"），必须在 exeDir 下解析为绝对路径。
+		abs := filepath.Join(exeDir, exe)
+		if fi, err := os.Stat(abs); err == nil && !fi.IsDir() {
+			exe = abs
+		}
+		// 若程序目录下不存在，保留原名交给 PATH。
 	}
 	if exe == "" {
 		exe = "syncthing" // 交给 PATH

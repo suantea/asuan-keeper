@@ -5,6 +5,10 @@
 
 ## 2026-08-17（未发版，已推 AtomGit main）
 
+- **fix(syncthing): 相对 bin 路径解析为绝对路径（修复 "cannot run executable found relative to current directory"）**
+  - 此前 `syncthing.bin` 为相对名（如 rename 产生的 `syncw.exe`）时，Go 1.19+ 的 exec.Command 拒绝执行不带 `./` 前缀的相对路径可执行文件，导致 syncthing 启动失败、asuan 立即退出、网页控制台无法访问。现在 New() 会把相对 bin 在 exeDir 下解析为绝对路径。
+- **feat(deploy): 无窗口后台启动器「后台启动-asuan.vbs」**
+  - 双击即用 wscript 隐藏窗口后台运行 asuan（无控制台黑窗、无需常开窗口），停止走托盘或 `asuan stop`；build-dist.sh 打包附带，README-QUICKSTART 同步说明。
 - **feat(perf): sidecar 低优先级**
   - 新增 internal/procprio：Windows 启动 syncthing 时设 Below Normal 调度优先级（OpenProcess+SetPriorityClass），避免抢占前台应用；其他平台 no-op。
 - **docs(ENGINE.md): config.xml 敏感字段收敛 + 协议指纹缓解**

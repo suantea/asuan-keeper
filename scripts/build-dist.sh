@@ -107,12 +107,17 @@ fi
 if [ "$TARGET_OS" = "windows" ] && [ -f "$ROOT/deploy/启动-asuan.bat" ]; then
   cp "$ROOT/deploy/启动-asuan.bat" "$DIST/启动-asuan.bat"
 fi
+# Windows 分发附带无窗口后台启动器（双击即后台运行，无需常开窗口）
+if [ "$TARGET_OS" = "windows" ] && [ -f "$ROOT/deploy/后台启动-asuan.vbs" ]; then
+  cp "$ROOT/deploy/后台启动-asuan.vbs" "$DIST/后台启动-asuan.vbs"
+fi
 # 快速开始提示
 cat > "$DIST/README-QUICKSTART.txt" <<'QS'
 asuan 快速开始
 ================
 1. 同目录已有 asuan 与 syncthing 引擎,无需额外下载。
 2. 首次运行: 双击「启动-asuan.bat」即可(自动 init + run + 打开网页控制台)
+   「后台启动-asuan.vbs」= 无窗口后台运行(双击即常驻,无需保持窗口)
    或命令行: asuan init  (生成 asuan.json 并输出本机设备 ID)
 3. 网页控制台 http://127.0.0.1:18084 提供分字段配置表单
    (对端 peers / 文件夹 folders / 网络隐蔽 均可可视化编辑,保存自动生效);

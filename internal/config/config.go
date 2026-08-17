@@ -53,7 +53,8 @@ type Placeholder struct {
 
 // Web 内置网页控制台。
 type Web struct {
-	Bind string `json:"bind"` // 监听地址：客户端用 127.0.0.1 仅本机，hub 用 0.0.0.0 供局域网访问
+	Bind  string `json:"bind"`            // 监听地址：客户端用 127.0.0.1 仅本机，hub 用 0.0.0.0 供局域网访问
+	Token string `json:"token,omitempty"` // 可选访问令牌：非空时控制台需携带此 token（默认空=不鉴权）
 }
 
 type Syncthing struct {

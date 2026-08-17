@@ -42,12 +42,42 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/release-many", s.handleReleaseMany)
 	mux.HandleFunc("/api/hydrate-many", s.handleHydrateMany)
 
+	// 可选访问令牌：web.token 非空时，除页面本身外所有 /api/* 请求
+	// 需携带 X-Auth-Token 头（或 ?token= 查询参数）且值匹配，否则 401。
+	// 默认空 = 不鉴权（保持开箱即用）。
+	handler := http.Handler(mux)
+	if s.cfg.Web.Token != "" {
+		handler = s.requireToken(mux)
+	}
+
 	ln, err := net.Listen("tcp", s.cfg.Web.Bind)
 	if err != nil {
 		return fmt.Errorf("web 监听 %s 失败: %w", s.cfg.Web.Bind, err)
 	}
-	go http.Serve(ln, mux)
+	go http.Serve(ln, handler)
 	return nil
+}
+
+// requireToken 包装 mux：校验 X-Auth-Token 头或 ?token= 查询参数。
+func (s *Server) requireToken(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 页面本身放行（前端 JS 里会带上 token 请求 API）。
+		if r.URL.Path == "/" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		tok := r.Header.Get("X-Auth-Token")
+		if tok == "" {
+			tok = r.URL.Query().Get("token")
+		}
+		if tok != s.cfg.Web.Token {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"unauthorized: missing or invalid token"}`))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {

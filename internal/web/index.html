@@ -178,6 +178,10 @@
         <div class="fld"><label>网页控制台监听（web.bind）</label><input type="text" id="f-webbind" placeholder="127.0.0.1:18084"></div>
         <div class="fld"><label>syncthing 管理界面（gui_bind）</label><input type="text" id="f-guibind" placeholder="127.0.0.1:8384"></div>
       </div>
+      <div class="frow">
+        <div class="fld" style="flex:1;min-width:240px"><label>控制台访问令牌（web.token，空=不鉴权）</label><input type="text" id="f-wtoken" placeholder="留空则不要求令牌"></div>
+      </div>
+      <div class="hint">设置后访问控制台需携带此令牌（浏览器首次会提示输入）；适合 hub/局域网暴露场景，本机单用户可留空。</div>
     </div>
 
     <div class="fcard">
@@ -266,13 +270,30 @@ function toast(msg,type){
   const t=$('toast'); t.textContent=msg; t.className=type||'';
   t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',2800);
 }
+// 可选访问令牌：服务端 web.token 非空时，所有 API 请求需携带（存 localStorage）。
+function authHeaders(){
+  const t=localStorage.getItem('asuan_token');
+  return t?{'X-Auth-Token':t}:{};
+}
+function handleAuthErr(r){
+  if(r.status===401){
+    const t=prompt('控制台已启用访问令牌，请输入 web.token（asuan.json 中的 Token）：');
+    if(t){ localStorage.setItem('asuan_token',t); toast('已保存令牌，请重试','ok'); }
+    else toast('未输入令牌','err');
+    return true;
+  }
+  return false;
+}
 async function getJSON(url){
-  const r=await fetch(url,{cache:'no-store'});
-  if(!r.ok) throw new Error('HTTP '+r.status);
+  const r=await fetch(url,{cache:'no-store',headers:authHeaders()});
+  if(!r.ok){
+    if(handleAuthErr(r)) throw new Error('AUTH');
+    throw new Error('HTTP '+r.status);
+  }
   return r.json();
 }
 async function post(url,body){
-  const r=await fetch(url,{method:'POST',headers:body?{'Content-Type':'application/json'}:undefined,body:body||undefined});
+  const r=await fetch(url,{method:'POST',headers:body?{'Content-Type':'application/json',...authHeaders()}:authHeaders(),body:body||undefined});
   let d; try{ d=await r.json(); }catch(e){ d={ok:false,error:'HTTP '+r.status}; }
   return d;
 }
@@ -363,6 +384,7 @@ $('tab-json').onclick = ()=>setMode('json');
 function fillForm(c){
   $('f-name').value = c.name||'';
   $('f-webbind').value = (c.web&&c.web.bind)||'127.0.0.1:18084';
+  $('f-wtoken').value = (c.web&&c.web.token)||'';
   $('f-guibind').value = (c.syncthing&&c.syncthing.gui_bind)||'127.0.0.1:8384';
   $('f-pmount').value = (c.placeholder&&c.placeholder.mount)||'';
   const st=(c.stealth)||{};
@@ -385,6 +407,7 @@ function collectForm(){
   const c = cfgData ? JSON.parse(JSON.stringify(cfgData)) : {version:1, name:'', syncthing:{}, stealth:{}, remote:{}, web:{}, peers:[], folders:[]};
   c.name = $('f-name').value.trim();
   c.web = c.web||{}; c.web.bind = $('f-webbind').value.trim()||'127.0.0.1:18084';
+  c.web.token = $('f-wtoken').value.trim();
   c.syncthing = c.syncthing||{}; c.syncthing.gui_bind = $('f-guibind').value.trim()||'127.0.0.1:8384';
   c.stealth = c.stealth||{};
   c.stealth.disable_upnp = $('f-upnp').checked;

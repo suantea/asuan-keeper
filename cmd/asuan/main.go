@@ -56,7 +56,7 @@ func loadOrDie(path string) (*config.Config, string) {
 func main() {
 	configPath := flag.String("config", "", "配置文件路径（默认 exe 同目录 asuan.json）")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|firewall|autostart|release|hydrate>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|firewall|autostart|rename|release|hydrate>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -86,6 +86,8 @@ func main() {
 		err = cmdFirewall(*configPath, flag.Args())
 	case "autostart":
 		err = cmdAutostart(flag.Args())
+	case "rename":
+		err = cmdRename(*configPath, flag.Args())
 	case "release":
 		err = cmdRelease(*configPath, flag.Args())
 	case "hydrate":
@@ -333,6 +335,79 @@ func cmdAutostart(args []string) error {
 	default:
 		return fmt.Errorf("用法: asuan autostart <status|on|off>")
 	}
+}
+
+// cmdRename 重命名引擎二进制（隐蔽：进程列表/任务管理器不再显示 syncthing）。
+//   asuan rename <新名字>   把引擎二进制改名为 <新名字>（自动补 .exe），
+//                           更新 asuan.json 的 syncthing.bin 指向新名，保留 .bak。
+// 数据目录名如需一并改名，改 syncthing.data_dir 后重启（不影响已同步数据，
+// 目录会重建；旧数据需自行迁移）。
+func cmdRename(configPath string, args []string) error {
+	if len(args) < 2 || strings.TrimSpace(args[1]) == "" {
+		return fmt.Errorf("用法: asuan rename <新名字>（如: asuan rename syncw）")
+	}
+	newname := strings.TrimSpace(args[1])
+	if !strings.HasSuffix(strings.ToLower(newname), ".exe") {
+		newname += ".exe"
+	}
+	// 仅允许纯字母/数字/下划线/连字符（防路径注入）。
+	for _, c := range newname[:len(newname)-4] {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-') {
+			return fmt.Errorf("非法名字 %q：仅允许字母/数字/下划线/连字符", newname)
+		}
+	}
+
+	cfg, path := loadOrDie(configPath)
+	dir := exeDir()
+	// 当前引擎二进制：优先配置 bin，否则同目录 syncthing.exe/syncthing。
+	cur := cfg.Syncthing.Bin
+	if cur == "" {
+		for _, c := range []string{"syncthing.exe", "syncthing"} {
+			if fi, err := os.Stat(filepath.Join(dir, c)); err == nil && !fi.IsDir() {
+				cur = c
+				break
+			}
+		}
+	}
+	if cur == "" {
+		return fmt.Errorf("未找到引擎二进制（syncthing.exe/syncthing），请确认发行包完整")
+	}
+	if strings.EqualFold(cur, newname) {
+		return fmt.Errorf("引擎已是 %q，无需改名", newname)
+	}
+
+	src := filepath.Join(dir, cur)
+	if _, err := os.Stat(src); err != nil {
+		return fmt.Errorf("引擎二进制 %s 不存在: %w", src, err)
+	}
+	dst := filepath.Join(dir, newname)
+	if _, err := os.Stat(dst); err == nil {
+		return fmt.Errorf("目标文件已存在: %s（先删除或换名）", dst)
+	}
+
+	// 备份旧名（.bak 保留，改错可回退）。
+	bak := src + ".bak"
+	_ = os.Remove(bak)
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(bak, data, 0o755); err != nil {
+		return err
+	}
+	if err := os.Rename(src, dst); err != nil {
+		return err
+	}
+
+	// 更新配置指向新名并保存。
+	cfg.Syncthing.Bin = newname
+	if err := cfg.Save(path); err != nil {
+		return fmt.Errorf("配置更新失败（二进制已改名）: %w", err)
+	}
+	fmt.Printf("引擎已改名: %s -> %s（旧文件备份为 %s.bak）\n", cur, newname, cur)
+	fmt.Println("提示：若同步正在运行，请 `asuan stop && asuan run` 重启生效；")
+	fmt.Println("数据目录名如需隐藏，可改 asuan.json 的 syncthing.data_dir（如 syncdata），重启后自动重建。")
+	return nil
 }
 
 // startPlaceholderMount 挂载占位符虚拟层（阻塞，独立协程内运行）。

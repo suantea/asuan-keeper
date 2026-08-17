@@ -5,6 +5,12 @@
 
 ## 2026-08-17（未发版，已推 AtomGit main）
 
+- **feat(web): 控制台可选访问令牌（web.token）**
+  - config 新增 `web.token`（空=不鉴权，默认关）；设置后除页面本身外所有 /api/* 请求需携带 `X-Auth-Token` 头（或 `?token=`），否则 401。
+  - 前端 fetch 自动携带 token（存 localStorage，401 时提示输入）；表单「基本信息」新增令牌输入框。
+- **feat(stealth): 引擎二进制改名（asuan rename）**
+  - 新增 `asuan rename <新名字>`：引擎二进制改名（自动补 .exe，旧文件保留 .bak 可回退），更新 asuan.json 的 `syncthing.bin` 指向新名——任务管理器/进程列表不再显示 syncthing。
+  - 名字白名单校验（字母/数字/下划线/连字符，防路径注入）。
 - **feat(autostart): 开机自启（免管理员）**
   - 新增 `asuan autostart <status|on|off>`：HKCU Run 注册表（无需管理员）+ wscript 隐藏窗口启动器（登录后无控制台黑窗自动后台启动 run）。
 - **feat(placeholder): 占位符驱动检测与启用引导**

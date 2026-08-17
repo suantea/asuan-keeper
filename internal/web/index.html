@@ -4,29 +4,55 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>asuan 控制台</title>
 <style>
-  :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--panel2:#1c232d;--line:#2a323d;--text:#dbe3ec;--muted:#8b98a7;--green:#3fb950;--yellow:#d29922;--red:#f85149;--blue:#58a6ff;--cyan:#39c5cf}
+  :root{
+    color-scheme:dark;--bg:#0d1117;--panel:#161b22;--panel2:#1c232d;--line:#2a323d;
+    --text:#dbe3ec;--muted:#8b98a7;--green:#3fb950;--yellow:#d29922;--red:#f85149;--blue:#58a6ff;--cyan:#39c5cf;
+    --radius:12px;--shadow:0 4px 20px rgba(0,0,0,.35);
+  }
   *{box-sizing:border-box;margin:0}
-  body{font:14px/1.55 system-ui,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1100px;margin:0 auto}
-  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-  h1{font-size:20px;font-weight:600;letter-spacing:.02em}
-  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
-  .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:500}
+  body{font:14px/1.55 system-ui,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:24px 20px 60px;max-width:1120px;margin:0 auto}
+  a{color:var(--blue);text-decoration:none}
+
+  /* 顶栏 */
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#1f6feb,#39c5cf);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff}
+  h1{font-size:19px;font-weight:600;letter-spacing:.02em}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:14px;font-size:12px;font-weight:500}
   .badge.on{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.35)}
   .badge.off{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.35)}
-  .sub{color:var(--muted);font-size:12px;margin-bottom:18px}
+  .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .sub{color:var(--muted);font-size:12px}
   .mono{font-family:ui-monospace,Consolas,"Courier New",monospace}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-  .card .k{color:var(--muted);font-size:12px;margin-bottom:4px}
-  .card .v{font-size:20px;font-weight:600}
+  .grow{flex:1}
+  .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:20px}
+  #myid{margin-top:2px}
+
+  /* 主页签 */
+  .tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:0}
+  .tab{padding:9px 18px;border-radius:10px 10px 0 0;cursor:pointer;color:var(--muted);font-size:14px;font-weight:500;border:1px solid transparent;border-bottom:none;user-select:none;transition:all .15s}
+  .tab:hover{color:var(--text);background:rgba(255,255,255,.03)}
+  .tab.on{color:var(--text);background:var(--panel);border-color:var(--line);position:relative}
+  .tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--panel)}
+
+  /* 统计卡片 */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+  .card .k{color:var(--muted);font-size:12px;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+  .card .v{font-size:21px;font-weight:600}
   .card .v.green{color:var(--green)}.card .v.yellow{color:var(--yellow)}.card .v.red{color:var(--red)}.card .v.blue{color:var(--blue)}
-  h2{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:24px 0 10px}
-  h3{font-size:13px;color:var(--text);margin:0 0 10px}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .ic{width:14px;height:14px;opacity:.8}
+
+  /* 分区 */
+  .sec-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;margin:24px 0 12px}
+  .sec-title .bar{width:3px;height:16px;border-radius:2px;background:linear-gradient(180deg,#1f6feb,#39c5cf)}
+  .sec-title .desc{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
   tr:last-child td{border-bottom:none}
-  th{color:var(--muted);font-weight:500;background:var(--panel2)}
+  tbody tr:hover{background:rgba(255,255,255,.02)}
+  th{color:var(--muted);font-weight:500;background:var(--panel2);font-size:12px}
   td.path{max-width:360px;overflow:hidden;text-overflow:ellipsis}
   td.id-cell{font-size:11px;color:var(--muted)}
   .pill{padding:2px 9px;border-radius:10px;font-size:12px}
@@ -39,31 +65,31 @@
   .bar>span{display:block;height:100%;background:var(--blue)}
   .bar.done>span{background:var(--green)}
   .num{font-variant-numeric:tabular-nums}
-  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;transition:filter .1s}
-  button:hover{filter:brightness(1.2)}
+  .empty{color:var(--muted);text-align:center;padding:18px}
+
+  /* 按钮 */
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;transition:filter .12s,background .12s}
+  button:hover{filter:brightness(1.18)}
   button.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
   button:disabled{opacity:.5;cursor:not-allowed}
   button.small{padding:3px 10px;font-size:12px}
   button.danger{background:rgba(248,81,73,.15);border-color:rgba(248,81,73,.4);color:var(--red)}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-  .grow{flex:1}
-  textarea{width:100%;height:360px;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px;font:12.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre;resize:vertical}
-  .idbox{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px}
-  .copybtn{padding:3px 8px;font-size:11px}
-  #toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:13px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:320px}
-  #toast.ok{border-color:rgba(63,185,80,.5)}#toast.err{border-color:rgba(248,81,73,.5)}
-  .spin{animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  /* ---- 分字段配置表单 ---- */
-  .fcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .mode-tabs{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .mode-tabs button{border:none;border-radius:0;background:var(--panel2)}
+  .mode-tabs button.on{background:#1f6feb;color:#fff}
+
+  /* 配置表单卡片 */
+  .fcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .fcard h3{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .fcard h3 .tag{font-size:11px;color:var(--muted);font-weight:400;background:var(--panel2);padding:1px 8px;border-radius:10px}
   .fcard .ftools{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
-  .frow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}
+  .frow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
   .fld{display:flex;flex-direction:column;gap:4px}
   .fld label{font-size:11px;color:var(--muted)}
-  .fld input[type=text],.fld input[type=number]{background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:13px;min-width:120px}
-  .fld input[type=checkbox]{width:16px;height:16px;accent-color:#1f6feb}
+  .fld input[type=text],.fld input[type=number]{background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:13px;min-width:130px}
   .fld input:focus{outline:1px solid #1f6feb}
-  .fcheck{display:flex;align-items:center;gap:6px;padding:5px 0;font-size:13px}
+  .fcheck{display:flex;align-items:center;gap:7px;padding:5px 0;font-size:13px}
   .fcheck input{width:15px;height:15px;accent-color:#1f6feb}
   .tbl-edit{width:100%;border-collapse:collapse}
   .tbl-edit th{background:var(--panel2);color:var(--muted);font-weight:500;padding:7px 9px;border-bottom:1px solid var(--line);font-size:12px;text-align:left}
@@ -71,120 +97,137 @@
   .tbl-edit input{width:100%;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px}
   .tbl-edit input[type=checkbox]{width:15px;height:15px;accent-color:#1f6feb}
   .tbl-edit select{width:100%;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px}
-  .mode-tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-  .mode-tabs button{border:none;border-radius:0;background:var(--panel2)}
-  .mode-tabs button.on{background:#1f6feb;color:#fff}
-  .hint{color:var(--muted);font-size:12px}
+  .hint{color:var(--muted);font-size:12px;line-height:1.7}
+  textarea{width:100%;height:380px;background:#0b0f14;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:14px;font:12.5px/1.6 ui-monospace,Consolas,monospace;white-space:pre;resize:vertical}
+  .idbox{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px}
+  .copybtn{padding:3px 8px;font-size:11px}
+
+  #toast{position:fixed;bottom:22px;right:22px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 17px;font-size:13px;display:none;box-shadow:0 8px 28px rgba(0,0,0,.5);max-width:340px;z-index:99}
+  #toast.ok{border-color:rgba(63,185,80,.5)}#toast.err{border-color:rgba(248,81,73,.5)}
+  .spin{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  footer{margin-top:34px;color:var(--muted);font-size:12px;text-align:center}
 </style>
 
 <header>
-  <h1>asuan</h1>
+  <div class="logo"><div class="logo-mark">as</div><h1>asuan 控制台</h1></div>
   <span class="badge off" id="runbadge"><span class="dot"></span><span id="runtext">停止</span></span>
   <span class="sub mono" id="ver"></span>
   <span class="grow"></span>
-  <button id="refresh" title="立即刷新">刷新</button>
+  <button id="refresh" title="立即刷新">↻ 刷新</button>
 </header>
-<div class="sub" id="myid"></div>
-
-<div class="cards">
-  <div class="card"><div class="k">同步状态</div><div class="v" id="cstate">–</div></div>
-  <div class="card"><div class="k">文件夹</div><div class="v" id="cfolders">–</div></div>
-  <div class="card"><div class="k">在线对端</div><div class="v" id="cpeers">–</div></div>
-  <div class="card"><div class="k">待同步文件</div><div class="v" id="cneed">–</div></div>
-  <div class="card"><div class="k">设备 ID</div><div class="v mono" style="font-size:13px" id="cid">–</div></div>
+<div class="topbar">
+  <span class="sub" id="myid">本机设备 ID：–</span>
 </div>
 
-<h2>同步文件夹</h2>
-<div class="panel">
-  <table>
-    <thead><tr><th>名称</th><th>路径</th><th>状态</th><th>全局</th><th>本地</th><th>进度</th><th>操作</th></tr></thead>
-    <tbody id="folders"><tr><td colspan="7" style="color:var(--muted)">加载中…</td></tr></tbody>
-  </table>
+<div class="tabs">
+  <div class="tab on" id="tab-overview" onclick="switchTab('overview')">📊 状态总览</div>
+  <div class="tab" id="tab-config" onclick="switchTab('config')">⚙️ 配置</div>
 </div>
 
-<h2>对端设备</h2>
-<div class="panel">
-  <table>
-    <thead><tr><th>名称</th><th>设备 ID</th><th>连接</th><th>地址</th></tr></thead>
-    <tbody id="peers"><tr><td colspan="4" style="color:var(--muted)">加载中…</td></tr></tbody>
-  </table>
-</div>
-
-<h2>配置</h2>
-<div class="row">
-  <span class="mode-tabs">
-    <button id="tab-form" class="on">表单编辑</button>
-    <button id="tab-json">JSON 编辑</button>
-  </span>
-  <button id="load" class="primary">编辑当前配置</button>
-  <button id="save" disabled>保存并重载</button>
-  <button id="reload">仅重载引擎</button>
-  <span class="sub" id="cfgmeta" style="margin:0">点击「编辑当前配置」加载</span>
-</div>
-
-<!-- ===== 分字段表单模式 ===== -->
-<div id="formcfg" style="display:block">
-  <div class="fcard">
-    <h3>基本信息</h3>
-    <div class="frow">
-      <div class="fld"><label>设备名称（name）</label><input type="text" id="f-name" placeholder="asuan-device"></div>
-      <div class="fld"><label>网页控制台监听（web.bind）</label><input type="text" id="f-webbind" placeholder="127.0.0.1:18084"></div>
-      <div class="fld"><label>syncthing 管理界面（gui_bind）</label><input type="text" id="f-guibind" placeholder="127.0.0.1:8384"></div>
-    </div>
+<!-- ================= 状态总览 ================= -->
+<div id="page-overview">
+  <div class="cards">
+    <div class="card"><div class="k">同步状态</div><div class="v" id="cstate">–</div></div>
+    <div class="card"><div class="k">文件夹</div><div class="v" id="cfolders">–</div></div>
+    <div class="card"><div class="k">在线对端</div><div class="v" id="cpeers">–</div></div>
+    <div class="card"><div class="k">待同步文件</div><div class="v" id="cneed">–</div></div>
+    <div class="card"><div class="k">设备 ID</div><div class="v mono" style="font-size:13px" id="cid">–</div></div>
   </div>
 
-  <div class="fcard">
-    <h3>网络与隐蔽（stealth）</h3>
-    <div class="frow">
-      <div class="fld"><label>同步端口（tcp_port，0=随机）</label><input type="number" id="f-tcpport" min="0" max="65535" placeholder="44312"></div>
-    </div>
-    <div class="fcheck"><input type="checkbox" id="f-upnp"><span>禁用 UPnP 端口映射</span></div>
-    <div class="fcheck"><input type="checkbox" id="f-ldisc"><span>禁用本地发现（局域网广播）</span></div>
-    <div class="fcheck"><input type="checkbox" id="f-gdisc"><span>禁用全局发现（公网发现服务器）</span></div>
-    <div class="fcheck"><input type="checkbox" id="f-relay"><span>禁用中继</span></div>
-    <div class="fcheck"><input type="checkbox" id="f-nat"><span>禁用 NAT 穿透</span></div>
-  </div>
-
-  <div class="fcard">
-    <h3>远程访问（remote，WireGuard 隧道）</h3>
-    <div class="fcheck"><input type="checkbox" id="f-renable"><span>启用远程访问</span></div>
-    <div class="frow">
-      <div class="fld"><label>隧道端点（endpoint，启用时必填）</label><input type="text" id="f-rendpoint" placeholder="wg.example.com"></div>
-      <div class="fld"><label>远程限速 kbps（0=不限）</label><input type="number" id="f-rlimit" min="0" placeholder="0"></div>
-      <div class="fcheck" style="align-self:center"><input type="checkbox" id="f-rlanfull"><span>LAN 直连满速，不受远程限速</span></div>
-    </div>
-  </div>
-
-  <div class="fcard">
-    <h3>对端设备（peers）</h3>
-    <table class="tbl-edit">
-      <thead><tr><th style="width:18%">名称</th><th style="width:34%">设备 ID（对端 8×7 字符）</th><th style="width:22%">地址 host:port</th><th style="width:12%">MAC（可选）</th><th style="width:8%">远程</th><th style="width:6%"></th></tr></thead>
-      <tbody id="peers-edit"></tbody>
+  <div class="sec-title"><span class="bar"></span>同步文件夹<span class="desc">释放 = 删本地不传播 / 水合 = 从对端拉回</span></div>
+  <div class="panel">
+    <table>
+      <thead><tr><th>名称</th><th>路径</th><th>状态</th><th>全局</th><th>本地</th><th>进度</th><th>操作</th></tr></thead>
+      <tbody id="folders"><tr><td colspan="7"><div class="empty">加载中…</div></td></tr></tbody>
     </table>
-    <div class="ftools"><button id="peer-add" class="small">+ 添加对端</button></div>
   </div>
 
-  <div class="fcard">
-    <h3>同步文件夹（folders）</h3>
-    <table class="tbl-edit">
-      <thead><tr><th style="width:14%">id</th><th style="width:14%">名称 label</th><th style="width:26%">路径 path</th><th style="width:9%">策略 policy</th><th style="width:11%">版本管理</th><th style="width:12%">保留天数</th><th style="width:6%"></th></tr></thead>
-      <tbody id="folders-edit"></tbody>
+  <div class="sec-title"><span class="bar"></span>对端设备<span class="desc">设备 ID 交换方式见快速开始</span></div>
+  <div class="panel">
+    <table>
+      <thead><tr><th>名称</th><th>设备 ID</th><th>连接</th><th>地址</th></tr></thead>
+      <tbody id="peers"><tr><td colspan="4"><div class="empty">加载中…</div></td></tr></tbody>
     </table>
-    <div class="ftools"><button id="folder-add" class="small">+ 添加文件夹</button></div>
-    <div class="hint" style="margin-top:8px">策略：sync=双向同步（推荐）/ local=仅本机 / off=不参与同步。版本管理：trashcan=回收站（按保留天数清空）/ staggered=分层保留 / 空=不保留历史版本。</div>
-  </div>
-
-  <div class="fcard">
-    <h3>高级（JSON 编辑）</h3>
-    <div class="hint">syncthing 二进制路径、数据目录、GUI API Key、hub、占位符挂载点等高级项请切换到「JSON 编辑」修改。</div>
   </div>
 </div>
 
-<!-- ===== JSON 模式 ===== -->
-<textarea id="cfg" spellcheck="false" style="display:none" placeholder="（切换到 JSON 编辑后在此修改 asuan.json）"></textarea>
-<div class="sub" id="err" style="margin-top:8px;color:var(--red)"></div>
+<!-- ================= 配置 ================= -->
+<div id="page-config" style="display:none">
+  <div class="row">
+    <span class="mode-tabs">
+      <button id="tab-form" class="on">表单编辑</button>
+      <button id="tab-json">JSON 编辑</button>
+    </span>
+    <button id="load" class="primary">载入当前配置</button>
+    <button id="save" disabled>保存并重载</button>
+    <button id="reload">仅重载引擎</button>
+    <span class="sub" id="cfgmeta" style="margin:0">点击「载入当前配置」开始</span>
+  </div>
+  <div class="sub" id="err" style="margin-top:6px;color:var(--red)"></div>
+
+  <div id="formcfg" style="display:block">
+    <div class="fcard">
+      <h3>基本信息</h3>
+      <div class="frow">
+        <div class="fld"><label>设备名称（name）</label><input type="text" id="f-name" placeholder="asuan-device"></div>
+        <div class="fld"><label>网页控制台监听（web.bind）</label><input type="text" id="f-webbind" placeholder="127.0.0.1:18084"></div>
+        <div class="fld"><label>syncthing 管理界面（gui_bind）</label><input type="text" id="f-guibind" placeholder="127.0.0.1:8384"></div>
+      </div>
+    </div>
+
+    <div class="fcard">
+      <h3>网络与隐蔽 <span class="tag">stealth</span></h3>
+      <div class="frow">
+        <div class="fld"><label>同步端口（tcp_port，0=随机）</label><input type="number" id="f-tcpport" min="0" max="65535" placeholder="44312"></div>
+      </div>
+      <div class="fcheck"><input type="checkbox" id="f-upnp"><span>禁用 UPnP 端口映射</span></div>
+      <div class="fcheck"><input type="checkbox" id="f-ldisc"><span>禁用本地发现（局域网广播）</span></div>
+      <div class="fcheck"><input type="checkbox" id="f-gdisc"><span>禁用全局发现（公网发现服务器）</span></div>
+      <div class="fcheck"><input type="checkbox" id="f-relay"><span>禁用中继</span></div>
+      <div class="fcheck"><input type="checkbox" id="f-nat"><span>禁用 NAT 穿透</span></div>
+    </div>
+
+    <div class="fcard">
+      <h3>远程访问 <span class="tag">remote</span></h3>
+      <div class="fcheck"><input type="checkbox" id="f-renable"><span>启用远程访问（WireGuard 隧道）</span></div>
+      <div class="frow">
+        <div class="fld"><label>隧道端点（endpoint，启用时必填）</label><input type="text" id="f-rendpoint" placeholder="wg.example.com"></div>
+        <div class="fld"><label>远程限速 kbps（0=不限）</label><input type="number" id="f-rlimit" min="0" placeholder="0"></div>
+        <div class="fcheck" style="align-self:center"><input type="checkbox" id="f-rlanfull"><span>LAN 直连满速，不受远程限速</span></div>
+      </div>
+    </div>
+
+    <div class="fcard">
+      <h3>对端设备 <span class="tag">peers</span></h3>
+      <table class="tbl-edit">
+        <thead><tr><th style="width:18%">名称</th><th style="width:32%">设备 ID（8×7 字符）</th><th style="width:22%">地址 host:port</th><th style="width:12%">MAC（可选）</th><th style="width:8%">远程</th><th style="width:8%"></th></tr></thead>
+        <tbody id="peers-edit"></tbody>
+      </table>
+      <div class="ftools"><button id="peer-add" class="small">+ 添加对端</button></div>
+    </div>
+
+    <div class="fcard">
+      <h3>同步文件夹 <span class="tag">folders</span></h3>
+      <table class="tbl-edit">
+        <thead><tr><th style="width:13%">id</th><th style="width:13%">名称 label</th><th style="width:26%">路径 path</th><th style="width:9%">策略</th><th style="width:11%">版本管理</th><th style="width:12%">保留天数</th><th style="width:6%"></th></tr></thead>
+        <tbody id="folders-edit"></tbody>
+      </table>
+      <div class="ftools"><button id="folder-add" class="small">+ 添加文件夹</button></div>
+      <div class="hint" style="margin-top:10px">策略：<b>sync</b>=双向同步（推荐）/ <b>local</b>=仅本机 / <b>off</b>=不参与同步。版本管理：<b>回收站</b>=按保留天数清空 / <b>分层</b>=分层保留 / 空=不保留历史版本。</div>
+    </div>
+
+    <div class="fcard">
+      <h3>高级项 <span class="tag">JSON</span></h3>
+      <div class="hint">syncthing 二进制路径 / 数据目录 / GUI API Key / hub / 占位符挂载点等高级项，请切换到「JSON 编辑」页签直接修改 asuan.json。</div>
+    </div>
+  </div>
+
+  <textarea id="cfg" spellcheck="false" style="display:none" placeholder="（切换到 JSON 编辑后在此修改 asuan.json）"></textarea>
+</div>
 
 <div id="toast"></div>
+<footer>asuan · 局域网同步 · 占位符按需拉取 · <a href="https://atomgit.com/asuan_suan/asuan-keeper" target="_blank" rel="noopener">项目主页</a></footer>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -220,17 +263,29 @@ async function post(url,body){
   return d;
 }
 
+/* ---------- 页签切换 ---------- */
+function switchTab(which){
+  const ov=which==='overview';
+  $('tab-overview').className='tab'+(ov?' on':'');
+  $('tab-config').className='tab'+(ov?'':' on');
+  $('page-overview').style.display=ov?'block':'none';
+  $('page-config').style.display=ov?'none':'block';
+  if(!ov) setTimeout(status,0); // 切回时刷新
+}
+
+/* ---------- 状态 ---------- */
 async function status(){
   try{
     data=await getJSON('/api/status');
   }catch(e){
-    toast('获取状态失败：'+e.message,'err'); return;
+    toast('获取状态失败：'+e.message,'err');
+    return;
   }
   const on=!!data.running;
   $('runbadge').className='badge '+(on?'on':'off');
   $('runtext').textContent=on?'运行中':'停止';
   $('ver').textContent=on?('syncthing '+data.version):'';
-  $('myid').textContent=on?('本机设备 ID：'+data.myID):'';
+  $('myid').textContent='本机设备 ID：'+(data.myID||'–');
   $('cid').textContent=data.myID||'–';
 
   const fs=data.folders||[];
@@ -268,17 +323,17 @@ async function status(){
       <td><span class="bar ${done?'done':''}"><span style="width:${pct}%"></span></span> <span class="num" style="font-size:12px;color:var(--muted)">${pct}%${need>0?' · '+fmt(need)+' 待':''}</span></td>
       <td>${relBtn} ${pathBtn}</td>
     </tr>`;
-  }).join(''):`<tr><td colspan="7" style="color:var(--muted)">尚无同步文件夹，请在配置中添加 folders</td></tr>`;
+  }).join(''):`<tr><td colspan="7"><div class="empty">尚无同步文件夹，请在「配置」中添加 folders</div></td></tr>`;
 
   $('peers').innerHTML=peers.length?peers.map(p=>`<tr>
     <td>${esc(p.name||'')}</td>
     <td class="id-cell">${esc(p.device_id||'')}</td>
     <td><span class="${p.connected?'peer-on':'peer-off'}">${p.connected?'● 在线':'○ 离线'}</span></td>
     <td class="id-cell">${esc(p.address||'—')}</td>
-  </tr>`).join(''):`<tr><td colspan="4" style="color:var(--muted)">尚未配置对端设备</td></tr>`;
+  </tr>`).join(''):`<tr><td colspan="4"><div class="empty">尚未配置对端设备，请在「配置」中添加 peers</div></td></tr>`;
 }
 
-// ---------- 分字段表单 ----------
+/* ---------- 分字段表单 ---------- */
 let formMode = true;
 function setMode(m){
   formMode = m==='form';
@@ -339,18 +394,20 @@ function collectForm(){
   }).filter(p=>p.device_id||p.name||p.address);
   c.folders = [...document.querySelectorAll('#folders-edit tr')].map(tr=>{
     const i=tr.dataset.i;
-    const id=$(`fid-${i}`).value.trim(), path=$(`fpath-${i}`).value.trim(), label=$(`flabel-${i}`).value.trim();
+    const id=$(fidId(i)).value.trim(), path=$(fpathId(i)).value.trim(), label=$(flabelId(i)).value.trim();
     if(!id && !path) return null;
-    const policy=$(`fpolicy-${i}`).value;
-    const vt=$(`fver-${i}`).value;
+    const policy=$(fpolicyId(i)).value;
+    const vt=$(fverId(i)).value;
     const f={id, label, path, policy};
-    if(vt==='trashcan'){ f.versioning={type:'trashcan', params:{cleanoutDays: String($(`fverdays-${i}`).value||'30')}}; }
+    if(vt==='trashcan'){ f.versioning={type:'trashcan', params:{cleanoutDays: String($(fverdaysId(i)).value||'30')}}; }
     else if(vt==='staggered'){ f.versioning={type:'staggered'}; }
     else { delete f.versioning; }
     return f;
   }).filter(Boolean);
   return c;
 }
+// 便捷 id 拼接（避免模板字符串嵌套歧义）
+const fidId=i=>`fid-${i}`, fpathId=i=>`fpath-${i}`, flabelId=i=>`flabel-${i}`, fpolicyId=i=>`fpolicy-${i}`, fverId=i=>`fver-${i}`, fverdaysId=i=>`fverdays-${i}`;
 function renderPeers(peers){
   const tb=$('peers-edit');
   tb.innerHTML='';
@@ -401,7 +458,7 @@ $('folder-add').onclick=()=>{ const tb=$('folders-edit'); tb.appendChild(folderR
 
 function enableSave(){
   $('save').disabled=false;
-  $('cfgmeta').textContent=formMode?'已修改，点击「保存并重载」生效':'已修改，点击「保存并重载」生效';
+  $('cfgmeta').textContent='已修改，点击「保存并重载」生效';
 }
 
 $('load').onclick=async function(){

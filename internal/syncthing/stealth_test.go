@@ -172,7 +172,7 @@ func TestApplyDevicesRemoteLimit(t *testing.T) {
 	}
 	if err := applyDevices(full, peers, "SELF", "self", config.Remote{
 		Enable: true, Endpoint: "wg.example.com:22000", LimitKbps: 2048,
-	}); err != nil {
+	}, "metadata"); err != nil {
 		t.Fatal(err)
 	}
 	var devices []map[string]any
@@ -208,7 +208,7 @@ func TestApplyDevicesRemoteLimit(t *testing.T) {
 func TestApplyDevicesRemoteDisabled(t *testing.T) {
 	full := fakeConfig()
 	peers := []config.Peer{{Name: "p", DeviceID: "PEER", Remote: true, Address: "192.168.1.9:22000"}}
-	if err := applyDevices(full, peers, "SELF", "self", config.Remote{}); err != nil {
+	if err := applyDevices(full, peers, "SELF", "self", config.Remote{}, "metadata"); err != nil {
 		t.Fatal(err)
 	}
 	var devices []map[string]any

@@ -5,6 +5,10 @@
 
 ## 2026-08-17（未发版，已推 AtomGit main）
 
+- **feat(efficiency): 压缩策略可配 + 日志瘦身 + 同步监控增强**
+  - 传输压缩：config 新增 `syncthing.compression`（metadata 默认 / full 适合 WAN / off 局域网最快），applyDevices 统一应用到所有对端；表单「基本信息」可选。
+  - 日志瘦身：`syncthing.log_max_mb`（默认 5MB），超限自动截断为 .1（syncthing 2.1.3 无 logLevel 字段，实测确认后改走大小轮转）。
+  - 同步监控：状态页新增 ↓ 接收 / ↑ 发送速率卡片（web 端两次采样差值 B/s）；文件夹错误摘要（db/status error 字段）随状态返回，异常时顶部徽章标红。
 - **feat(web): 控制台可选访问令牌（web.token）**
   - config 新增 `web.token`（空=不鉴权，默认关）；设置后除页面本身外所有 /api/* 请求需携带 `X-Auth-Token` 头（或 `?token=`），否则 401。
   - 前端 fetch 自动携带 token（存 localStorage，401 时提示输入）；表单「基本信息」新增令牌输入框。

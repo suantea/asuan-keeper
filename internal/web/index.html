@@ -132,6 +132,8 @@
     <div class="card"><div class="k">文件夹</div><div class="v" id="cfolders">–</div></div>
     <div class="card"><div class="k">在线对端</div><div class="v" id="cpeers">–</div></div>
     <div class="card"><div class="k">待同步文件</div><div class="v" id="cneed">–</div></div>
+    <div class="card"><div class="k">↓ 接收速率</div><div class="v" id="cratein" style="font-size:17px">–</div></div>
+    <div class="card"><div class="k">↑ 发送速率</div><div class="v" id="crateout" style="font-size:17px">–</div></div>
     <div class="card"><div class="k">设备 ID</div><div class="v mono" style="font-size:13px" id="cid">–</div></div>
   </div>
 
@@ -177,6 +179,14 @@
         <div class="fld"><label>设备名称（name）</label><input type="text" id="f-name" placeholder="asuan-device"></div>
         <div class="fld"><label>网页控制台监听（web.bind）</label><input type="text" id="f-webbind" placeholder="127.0.0.1:18084"></div>
         <div class="fld"><label>syncthing 管理界面（gui_bind）</label><input type="text" id="f-guibind" placeholder="127.0.0.1:8384"></div>
+        <div class="fld"><label>传输压缩（compression）</label>
+          <select id="f-compress">
+            <option value="metadata">metadata（默认，只压缩元数据）</option>
+            <option value="full">full（内容也压缩，适合 WAN）</option>
+            <option value="off">off（不压缩，局域网最快）</option>
+          </select>
+        </div>
+        <div class="fld"><label>syncthing 日志上限 MB（log_max_mb，0=不限制）</label><input type="number" id="f-logmax" min="0" placeholder="5"></div>
       </div>
       <div class="frow">
         <div class="fld" style="flex:1;min-width:240px"><label>控制台访问令牌（web.token，空=不鉴权）</label><input type="text" id="f-wtoken" placeholder="留空则不要求令牌"></div>
@@ -337,6 +347,16 @@ async function status(){
   $('cpeers').textContent=online+'/'+peers.length;
   $('cpeers').className='v '+(online>0?'green':'yellow');
   $('cneed').textContent=fmt(need); $('cneed').className='v '+(need>0?'yellow':'green');
+  // 同步速率（B/s）
+  const rateFmt=v=>v>=1024*1024?(v/1024/1024).toFixed(2)+' MB/s':(v>=1024?(v/1024).toFixed(1)+' KB/s':v+' B/s');
+  $('cratein').textContent=rateFmt(data.rateIn||0); $('cratein').className='v '+(data.rateIn>0?'blue':'');
+  $('crateout').textContent=rateFmt(data.rateOut||0); $('crateout').className='v '+(data.rateOut>0?'cyan':'');
+  // 错误摘要（toast 提示一次 + 状态徽章标红）
+  const errs=(data.errors||[]);
+  if(errs.length){
+    $('runbadge').className='badge off'; $('runtext').textContent='同步异常';
+    const cs2=$('cstate'); cs2.textContent='异常'; cs2.className='v red';
+  }
 
   $('folders').innerHTML=fs.length?fs.map(f=>{
     const total=Number(f.globalTotalItems)||0, local=Number(f.localTotalItems)||0;
@@ -386,6 +406,8 @@ function fillForm(c){
   $('f-webbind').value = (c.web&&c.web.bind)||'127.0.0.1:18084';
   $('f-wtoken').value = (c.web&&c.web.token)||'';
   $('f-guibind').value = (c.syncthing&&c.syncthing.gui_bind)||'127.0.0.1:8384';
+  $('f-compress').value = (c.syncthing&&c.syncthing.compression)||'metadata';
+  $('f-logmax').value = (c.syncthing&&c.syncthing.log_max_mb)||5;
   $('f-pmount').value = (c.placeholder&&c.placeholder.mount)||'';
   const st=(c.stealth)||{};
   $('f-tcpport').value = st.tcp_port||0;
@@ -409,6 +431,8 @@ function collectForm(){
   c.web = c.web||{}; c.web.bind = $('f-webbind').value.trim()||'127.0.0.1:18084';
   c.web.token = $('f-wtoken').value.trim();
   c.syncthing = c.syncthing||{}; c.syncthing.gui_bind = $('f-guibind').value.trim()||'127.0.0.1:8384';
+  c.syncthing.compression = $('f-compress').value;
+  c.syncthing.log_max_mb = Math.max(0, Number($('f-logmax').value)||0);
   c.stealth = c.stealth||{};
   c.stealth.disable_upnp = $('f-upnp').checked;
   c.stealth.disable_local_discovery = $('f-ldisc').checked;

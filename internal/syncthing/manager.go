@@ -116,6 +116,14 @@ func (m *Manager) Start() error {
 		"STNORESTART=1",
 	)
 	logPath := filepath.Join(m.HomeDir, "syncthing.log")
+	// 日志瘦身：syncthing.log 超过上限（LogMaxMB，默认 5MB）时截断，
+	// 防止长期运行日志无限增长占用磁盘。
+	if maxMB := m.Cfg.Syncthing.LogMaxMB; maxMB > 0 {
+		if fi, err := os.Stat(logPath); err == nil && fi.Size() > int64(maxMB)*1024*1024 {
+			_ = os.Remove(logPath + ".1")
+			_ = os.Rename(logPath, logPath+".1")
+		}
+	}
 	if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err == nil {
 		cmd.Stdout, cmd.Stderr = f, f
 	}
@@ -288,7 +296,7 @@ func (m *Manager) Apply() error {
 	}
 	selfID, _ := m.MyID()
 	applyStealth(full, m.Cfg.Stealth)
-	if err := applyDevices(full, m.Cfg.Peers, selfID, m.Cfg.Name, m.Cfg.Remote); err != nil {
+	if err := applyDevices(full, m.Cfg.Peers, selfID, m.Cfg.Name, m.Cfg.Remote, m.Cfg.Syncthing.Compression); err != nil {
 		return err
 	}
 	var peerIDs []string
@@ -357,7 +365,15 @@ func applyStealth(full map[string]json.RawMessage, s config.Stealth) {
 	full["options"] = b
 }
 
-func applyDevices(full map[string]json.RawMessage, peers []config.Peer, selfID, selfName string, remote config.Remote) error {
+func applyDevices(full map[string]json.RawMessage, peers []config.Peer, selfID, selfName string, remote config.Remote, compression string) error {
+	if compression == "" {
+		compression = "metadata"
+	}
+	switch compression {
+	case "metadata", "full", "off":
+	default:
+		compression = "metadata"
+	}
 	var cur []map[string]any
 	if err := json.Unmarshal(full["devices"], &cur); err != nil {
 		return err
@@ -377,11 +393,13 @@ func applyDevices(full map[string]json.RawMessage, peers []config.Peer, selfID, 
 			d = map[string]any{
 				"deviceID":    p.DeviceID,
 				"name":        p.Name,
-				"compression": "metadata",
+				"compression": compression,
 				"paused":      false,
 			}
 			byID[p.DeviceID] = d
 		}
+		// 已存在的对端也应用压缩策略（新建时已设置，这里统一覆盖）。
+		d["compression"] = compression
 		// 远程对端：地址走 WireGuard 隧道端点，并应用远程限速。
 		if p.Remote && remote.Enable {
 			if remote.Endpoint != "" {
@@ -560,11 +578,13 @@ func (m *Manager) api(method, path string, reqBody, respOut any) (int, error) {
 
 // Status 汇总同步状态（供 status 命令与 Web 界面）。
 type Status struct {
-	Running bool
-	Version string
-	MyID    string
-	Folders []FolderStatus
-	Peers   []PeerStatus
+	Running       bool
+	Version       string
+	MyID          string
+	Folders       []FolderStatus
+	Peers         []PeerStatus
+	InBytesTotal  int64 // 在线对端累计接收字节（用于速率计算）
+	OutBytesTotal int64 // 在线对端累计发送字节（用于速率计算）
 }
 
 type PeerStatus struct {
@@ -579,6 +599,7 @@ type FolderStatus struct {
 	Label            string `json:"label"`
 	Path             string `json:"path"`
 	State            string `json:"state"`
+	Error            string `json:"error"` // 文件夹同步错误（如拉取失败/冲突），空=正常
 	GlobalFiles      int64  `json:"globalFiles"`
 	GlobalBytes      int64  `json:"globalBytes"`
 	LocalFiles       int64  `json:"localFiles"`
@@ -609,8 +630,10 @@ func (m *Manager) Status() (*Status, error) {
 	}
 	var conns struct {
 		Connections map[string]struct {
-			Connected bool   `json:"connected"`
-			Address   string `json:"address"`
+			Connected     bool   `json:"connected"`
+			Address       string `json:"address"`
+			InBytesTotal  int64  `json:"inBytesTotal"`
+			OutBytesTotal int64  `json:"outBytesTotal"`
 		} `json:"connections"`
 	}
 	_, err := m.api("GET", "/rest/system/connections", nil, &conns)
@@ -621,6 +644,10 @@ func (m *Manager) Status() (*Status, error) {
 				Name: p.Name, DeviceID: p.DeviceID,
 				Connected: ok && c.Connected, Address: c.Address,
 			})
+			if ok && c.Connected {
+				st.InBytesTotal += c.InBytesTotal
+				st.OutBytesTotal += c.OutBytesTotal
+			}
 		}
 	}
 	return st, nil

@@ -25,6 +25,11 @@ type Server struct {
 	// path 是 asuan.json 路径（保存用），mgr 是当前引擎管理器。
 	path string
 	mgr  *syncthing.Manager
+
+	// 速率采样（两次 /api/status 差值，前端 3s 轮询）。
+	lastSample time.Time
+	lastIn     int64
+	lastOut    int64
 }
 
 func New(cfg *config.Config, path string, mgr *syncthing.Manager) *Server {
@@ -100,23 +105,52 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	// 标记每个文件夹是否处于释放状态（占位符：本地实体已删、对端保留）。
 	folders := make([]map[string]any, 0, len(st.Folders))
+	errors := make([]string, 0)
 	for _, f := range st.Folders {
 		released, _ := placeholder.IsReleased(f.Path)
 		folders = append(folders, map[string]any{
 			"id": f.ID, "label": f.Label, "path": f.Path, "state": f.State,
+			"error": f.Error, // 文件夹同步错误摘要（空=正常）
 			"globalFiles": f.GlobalFiles, "globalBytes": f.GlobalBytes,
 			"localFiles": f.LocalFiles, "localBytes": f.LocalBytes,
 			"needFiles": f.NeedFiles, "globalTotalItems": f.GlobalTotalItems,
 			"localTotalItems": f.LocalTotalItems, "released": released,
 		})
+		if f.Error != "" {
+			errors = append(errors, fmt.Sprintf("%s: %s", f.Label, f.Error))
+		}
+	}
+	// 同步速率（B/s）：用两次采样差值（前端 3s 轮询，后端保留上次采样）。
+	now := time.Now()
+	rateIn, rateOut := int64(0), int64(0)
+	if s.lastSample.IsZero() {
+		s.lastSample = now
+		s.lastIn, s.lastOut = st.InBytesTotal, st.OutBytesTotal
+	} else {
+		dt := now.Sub(s.lastSample).Seconds()
+		if dt > 0 {
+			rateIn = int64(float64(st.InBytesTotal-s.lastIn) / dt)
+			rateOut = int64(float64(st.OutBytesTotal-s.lastOut) / dt)
+		}
+		s.lastSample = now
+		s.lastIn, s.lastOut = st.InBytesTotal, st.OutBytesTotal
+	}
+	if rateIn < 0 {
+		rateIn = 0
+	}
+	if rateOut < 0 {
+		rateOut = 0
 	}
 	stj(w, map[string]any{
-		"name":    s.cfg.Name,
-		"running": st.Running,
-		"version": st.Version,
-		"myID":    st.MyID,
-		"folders": folders,
-		"peers":   st.Peers,
+		"name":     s.cfg.Name,
+		"running":  st.Running,
+		"version":  st.Version,
+		"myID":     st.MyID,
+		"folders":  folders,
+		"peers":    st.Peers,
+		"errors":   errors,
+		"rateIn":   rateIn,
+		"rateOut":  rateOut,
 	})
 }
 

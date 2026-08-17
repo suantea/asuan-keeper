@@ -58,10 +58,12 @@ type Web struct {
 }
 
 type Syncthing struct {
-	Bin       string `json:"bin"`      // syncthing 可执行文件路径（空=同目录 syncthing.exe/syncthing）
-	DataDir   string `json:"data_dir"` // syncthing 配置与数据目录（空=程序目录下 syncthing/）
-	GUIBind   string `json:"gui_bind"` // 管理界面监听地址，隐蔽要求绑定 loopback
-	GUIAPIKey string `json:"gui_api_key"`
+	Bin         string `json:"bin"`      // syncthing 可执行文件路径（空=同目录 syncthing.exe/syncthing）
+	DataDir     string `json:"data_dir"` // syncthing 配置与数据目录（空=程序目录下 syncthing/）
+	GUIBind     string `json:"gui_bind"` // 管理界面监听地址，隐蔽要求绑定 loopback
+	GUIAPIKey   string `json:"gui_api_key"`
+	Compression string `json:"compression,omitempty"` // 传输压缩：metadata（默认，只压缩元数据）/ full（内容也压缩，适合 WAN）/ off（不压缩）
+	LogMaxMB    int    `json:"log_max_mb,omitempty"`  // syncthing.log 大小上限（MB），超限自动截断；0=不限制（默认 5）
 }
 
 type Stealth struct {

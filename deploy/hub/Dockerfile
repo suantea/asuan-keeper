@@ -16,8 +16,16 @@ COPY cmd ./cmd
 COPY third_party ./third_party
 RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /out/asuan ./cmd/asuan
 
-FROM syncthing/syncthing:2.1.3
+FROM debian:bookworm-slim
+# 运行阶段用 glibc 基础（asuan 是 CGO 动态链接 glibc 二进制，官方 syncthing
+# 镜像为 musl/Alpine 系，缺 ld-linux loader 会导致 "asuan: not found"）；
+# syncthing 官方二进制是静态链接，可直接 COPY 引入。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgtk-3-0 libayatana-appindicator3-1 libglib2.0-0 libfuse2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/asuan /usr/bin/asuan
+COPY --from=syncthing/syncthing:2.1.3 /bin/syncthing /usr/bin/syncthing
 # context 为仓库根时，entrypoint.sh 在 deploy/hub/ 下
 COPY deploy/hub/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

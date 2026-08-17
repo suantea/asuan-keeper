@@ -2,6 +2,7 @@ package tray
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -21,6 +22,19 @@ type Actions struct {
 	TogglePause func() bool
 	// OnExit 托盘退出时回调（如停止引擎、结束进程）。
 	OnExit func()
+}
+
+// Enabled 返回当前环境是否支持系统托盘。
+// Windows/macOS 恒 true；Linux（含 NAS/Docker 无显示器环境）需存在
+// DISPLAY/WAYLAND_DISPLAY，否则 systray(GTK) 初始化失败导致进程退出
+// （QNAP 容器曾因此崩溃重启循环）。
+func Enabled() bool {
+	switch runtime.GOOS {
+	case "windows", "darwin":
+		return true
+	default:
+		return os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+	}
 }
 
 // Run 启动托盘事件循环（阻塞，需在独立 goroutine 调用）。

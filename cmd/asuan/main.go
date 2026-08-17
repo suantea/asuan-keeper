@@ -159,37 +159,42 @@ func cmdRun(configPath string) error {
 	fmt.Printf("asuan 同步运行中 (设备 %s, GUI %s, Web %s)\n", cfg.Name, cfg.Syncthing.GUIBind, cfg.Web.Bind)
 
 	// 系统托盘：单击→查看同步进度，双击→打开配置界面，右键→菜单（退出/暂停-同步/打开控制台）。
-	// Windows/macOS 均为托盘形态；启动失败仅告警不阻断。
+	// Windows/macOS 均为托盘形态；Linux/NAS 无显示环境跳过（systray 初始化
+	// 会失败并导致进程退出，QNAP 容器曾崩溃重启循环）。
 	webURL := consoleURL(cfg.Web.Bind)
-	tray.SetStatusFn(m.Status)
-	go func() {
-		tray.Run(tray.Actions{
-			OpenConsole: func() {
-				_ = tray.OpenBrowser(webURL)
-			},
-			OpenConfig: func() {
-				_ = tray.OpenBrowser(webURL)
-			},
-			TogglePause: func() bool {
-				if tray.Paused() {
-					if err := m.Resume(); err != nil {
-						fmt.Fprintf(os.Stderr, "恢复同步失败: %v\n", err)
-						return true
+	if tray.Enabled() {
+		tray.SetStatusFn(m.Status)
+		go func() {
+			tray.Run(tray.Actions{
+				OpenConsole: func() {
+					_ = tray.OpenBrowser(webURL)
+				},
+				OpenConfig: func() {
+					_ = tray.OpenBrowser(webURL)
+				},
+				TogglePause: func() bool {
+					if tray.Paused() {
+						if err := m.Resume(); err != nil {
+							fmt.Fprintf(os.Stderr, "恢复同步失败: %v\n", err)
+							return true
+						}
+						return false
 					}
-					return false
-				}
-				if err := m.Pause(); err != nil {
-					fmt.Fprintf(os.Stderr, "暂停同步失败: %v\n", err)
-					return false
-				}
-				return true
-			},
-			OnExit: func() {
-				_ = m.Stop()
-			},
-		})
-	}()
-	fmt.Printf("托盘已启动：单击查看进度，双击打开配置，右键菜单\n")
+					if err := m.Pause(); err != nil {
+						fmt.Fprintf(os.Stderr, "暂停同步失败: %v\n", err)
+						return false
+					}
+					return true
+				},
+				OnExit: func() {
+					_ = m.Stop()
+				},
+			})
+		}()
+		fmt.Printf("托盘已启动：单击查看进度，双击打开配置，右键菜单\n")
+	} else {
+		fmt.Printf("当前环境无图形显示，已跳过系统托盘（网页控制台仍可用: %s）\n", webURL)
+	}
 
 	// 占位符虚拟层：配置了挂载点时，把已释放文件夹以虚拟目录挂出
 	// （访问即水合）。需 WinFsp/macFUSE/FUSE 运行时，失败仅告警不阻断。

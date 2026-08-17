@@ -27,10 +27,13 @@ if [ -z "$IMAGE_PATH" ]; then
 fi
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# Dockerfile 内 COPY 路径相对仓库根（如 deploy/hub/entrypoint.sh），
+# 因此 build context 必须是仓库根，而不是 deploy/hub/ 本身。
+ROOT="$(cd "$DIR/../.." && pwd)"
 IMAGE="$IMAGE_PATH:$VERSION"
 
-echo "==> 构建镜像: $IMAGE"
-docker build -t "$IMAGE" "$DIR"
+echo "==> 构建镜像: $IMAGE (context=$ROOT)"
+docker build -f "$DIR/Dockerfile" -t "$IMAGE" "$ROOT"
 
 echo "==> 登录镜像仓库(输入你的用户名与访问令牌/密码)"
 # 国内 registry 需先 docker login <registry域名>;Docker Hub 直接 docker login

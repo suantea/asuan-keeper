@@ -5,6 +5,13 @@
 
 ## 2026-08-17（未发版，已推 AtomGit main）
 
+- **feat(autostart): 开机自启（免管理员）**
+  - 新增 `asuan autostart <status|on|off>`：HKCU Run 注册表（无需管理员）+ wscript 隐藏窗口启动器（登录后无控制台黑窗自动后台启动 run）。
+- **feat(placeholder): 占位符驱动检测与启用引导**
+  - 新增 `DriverAvailable()`（Windows 查 winfsp.sys / macOS macFUSE / Linux /dev/fuse）；配置了 `placeholder.mount` 但缺驱动时给出明确安装引导（WinFsp/macFUSE/FUSE 下载地址），不再静默失败。
+  - 控制台表单新增「占位符虚拟层」卡片（挂载点输入 + 说明）。
+- **feat(web): 批量释放/水合 + 并发上限**
+  - 新增 `/api/release-many`、`/api/hydrate-many`（folder 数组，并发 3 上限，逐项汇总结果）；状态总览「同步文件夹」新增「释放全部/水合全部」按钮。
 - **feat(stealth): 连接白名单（allowed_networks）**
   - config 新增 `stealth.allowed_networks`（CIDR 或 IP 列表，空=不限制）；控制台表单「网络与隐蔽」可编辑。
   - **网络层白名单走系统防火墙 remoteip**（`firewall add` 生成带 `remoteip=` 的入站规则，仅允许白名单网段访问同步端口；⚠️ 实测 syncthing 2.1.3 options **无 allowedNetworks 字段**，PUT 静默忽略，故不走 syncthing）。

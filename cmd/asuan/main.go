@@ -20,9 +20,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
+	"atomgit.com/suantea/asuan-keeper/internal/autostart"
 	"atomgit.com/suantea/asuan-keeper/internal/config"
 	"atomgit.com/suantea/asuan-keeper/internal/firewall"
 	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
@@ -54,7 +56,7 @@ func loadOrDie(path string) (*config.Config, string) {
 func main() {
 	configPath := flag.String("config", "", "配置文件路径（默认 exe 同目录 asuan.json）")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|release|hydrate>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|firewall|autostart|release|hydrate>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -82,6 +84,8 @@ func main() {
 		err = cmdEngineUpdate(*configPath, flag.Args())
 	case "firewall":
 		err = cmdFirewall(*configPath, flag.Args())
+	case "autostart":
+		err = cmdAutostart(flag.Args())
 	case "release":
 		err = cmdRelease(*configPath, flag.Args())
 	case "hydrate":
@@ -291,8 +295,64 @@ func cmdFirewall(configPath string, args []string) error {
 	}
 }
 
+// cmdAutostart 管理开机自启（Windows：HKCU Run 免管理员 + 隐藏窗口启动器）。
+//   asuan autostart status   查看是否已注册
+//   asuan autostart on       注册开机自启（wscript 隐藏窗口启动 run）
+//   asuan autostart off      取消开机自启
+func cmdAutostart(args []string) error {
+	sub := "status"
+	if len(args) > 1 {
+		sub = args[1]
+	}
+	switch sub {
+	case "", "status":
+		on, err := autostart.Status()
+		if err != nil {
+			return err
+		}
+		if on {
+			fmt.Println("开机自启：已启用（登录后自动后台启动同步）")
+		} else {
+			fmt.Println("开机自启：未启用")
+			fmt.Println("运行 `asuan autostart on` 启用（无需管理员）")
+		}
+		return nil
+	case "on":
+		if err := autostart.Enable(); err != nil {
+			return err
+		}
+		fmt.Println("开机自启已启用：登录后自动后台启动同步（无控制台窗口）")
+		fmt.Println("取消：asuan autostart off")
+		return nil
+	case "off":
+		if err := autostart.Disable(); err != nil {
+			return err
+		}
+		fmt.Println("开机自启已取消")
+		return nil
+	default:
+		return fmt.Errorf("用法: asuan autostart <status|on|off>")
+	}
+}
+
 // startPlaceholderMount 挂载占位符虚拟层（阻塞，独立协程内运行）。
+// 挂载前检测 FUSE 运行时（Windows: WinFsp / macOS: macFUSE / Linux: FUSE），
+// 缺失时给出明确引导而非静默失败。
 func startPlaceholderMount(cfg *config.Config, m *syncthing.Manager) error {
+	if !placeholder.DriverAvailable() {
+		switch runtime.GOOS {
+		case "windows":
+			fmt.Fprintln(os.Stderr, "警告: 占位符虚拟层需要 WinFsp 驱动，但未检测到。")
+			fmt.Fprintln(os.Stderr, "      请到 https://winfsp.dev/ 下载安装 WinFsp 后重试。")
+		case "darwin":
+			fmt.Fprintln(os.Stderr, "警告: 占位符虚拟层需要 macFUSE，但未检测到。")
+			fmt.Fprintln(os.Stderr, "      请到 https://macfuse.github.io/ 下载安装后重试。")
+		default:
+			fmt.Fprintln(os.Stderr, "警告: 占位符虚拟层需要 FUSE（/dev/fuse），但当前环境不可用。")
+		}
+		fmt.Fprintln(os.Stderr, "      不启用占位符虚拟层（不影响普通同步）。")
+		return nil
+	}
 	lister := placeholder.NewReleaseLister(cfg, m)
 	ph := placeholder.NewPlaceholderFS(lister, "", func(rel string) error {
 		// 打开占位文件 → 只水合该文件/子路径（单文件级；空子路径=文件夹级）。

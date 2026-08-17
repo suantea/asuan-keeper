@@ -39,6 +39,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/reload", s.handleReload)
 	mux.HandleFunc("/api/release", s.handleRelease)
 	mux.HandleFunc("/api/hydrate", s.handleHydrate)
+	mux.HandleFunc("/api/release-many", s.handleReleaseMany)
+	mux.HandleFunc("/api/hydrate-many", s.handleHydrateMany)
 
 	ln, err := net.Listen("tcp", s.cfg.Web.Bind)
 	if err != nil {
@@ -201,4 +203,73 @@ func (s *Server) handleHydrate(w http.ResponseWriter, r *http.Request) {
 func stj(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// foldersFromBody 解析批量操作请求体（folder id 数组）。
+func foldersFromBody(r *http.Request) ([]string, error) {
+	var b struct {
+		Folders []string `json:"folders"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		return nil, err
+	}
+	if len(b.Folders) == 0 {
+		return nil, fmt.Errorf("缺少 folders 参数")
+	}
+	return b.Folders, nil
+}
+
+// batchOp 并发执行释放/水合（限并发，汇总每个 folder 的结果）。
+func (s *Server) batchOp(w http.ResponseWriter, r *http.Request, hydrate bool) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	folders, err := foldersFromBody(r)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	s.mu.RLock()
+	cfg, mgr := s.cfg, s.mgr
+	s.mu.RUnlock()
+
+	const maxConcurrent = 3 // 并发上限，避免同时水合压垮对端/本地 IO
+	sem := make(chan struct{}, maxConcurrent)
+	results := make([]map[string]any, len(folders))
+	var wg sync.WaitGroup
+	for i, id := range folders {
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			res := map[string]any{"folder": id}
+			var err error
+			if hydrate {
+				err = placeholder.Hydrate(cfg, mgr, id, "", 10*time.Minute)
+			} else {
+				err = placeholder.Release(cfg, mgr, id, "")
+			}
+			if err != nil {
+				res["ok"] = false
+				res["error"] = err.Error()
+			} else {
+				res["ok"] = true
+			}
+			results[i] = res
+		}(i, id)
+	}
+	wg.Wait()
+	stj(w, map[string]any{"ok": true, "results": results})
+}
+
+// handleReleaseMany 批量释放文件夹。
+func (s *Server) handleReleaseMany(w http.ResponseWriter, r *http.Request) {
+	s.batchOp(w, r, false)
+}
+
+// handleHydrateMany 批量水合文件夹。
+func (s *Server) handleHydrateMany(w http.ResponseWriter, r *http.Request) {
+	s.batchOp(w, r, true)
 }

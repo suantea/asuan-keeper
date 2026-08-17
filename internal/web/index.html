@@ -135,7 +135,11 @@
     <div class="card"><div class="k">设备 ID</div><div class="v mono" style="font-size:13px" id="cid">–</div></div>
   </div>
 
-  <div class="sec-title"><span class="bar"></span>同步文件夹<span class="desc">释放 = 删本地不传播 / 水合 = 从对端拉回</span></div>
+  <div class="sec-title"><span class="bar"></span>同步文件夹<span class="desc">释放 = 删本地不传播 / 水合 = 从对端拉回</span>
+    <span style="flex:1"></span>
+    <button id="rel-all" class="small" title="释放全部文件夹（删本地实体不传播，对端保留）">释放全部</button>
+    <button id="hyd-all" class="small" title="水合全部文件夹（从对端重新拉回全部内容）">水合全部</button>
+  </div>
   <div class="panel">
     <table>
       <thead><tr><th>名称</th><th>路径</th><th>状态</th><th>全局</th><th>本地</th><th>进度</th><th>操作</th></tr></thead>
@@ -217,6 +221,14 @@
       </table>
       <div class="ftools"><button id="folder-add" class="small">+ 添加文件夹</button></div>
       <div class="hint" style="margin-top:10px">策略：<b>sync</b>=双向同步（推荐）/ <b>local</b>=仅本机 / <b>off</b>=不参与同步。版本管理：<b>回收站</b>=按保留天数清空 / <b>分层</b>=分层保留 / 空=不保留历史版本。</div>
+    </div>
+
+    <div class="fcard">
+      <h3>占位符虚拟层 <span class="tag">placeholder</span></h3>
+      <div class="frow">
+        <div class="fld" style="flex:1;min-width:260px"><label>挂载点目录（placeholder.mount，空=不启用）</label><input type="text" id="f-pmount" placeholder="如 D:\asuan-mount（需安装 WinFsp）"></div>
+      </div>
+      <div class="hint">启用后，已「释放」的文件夹内容以占位条目显示在挂载点，双击/打开即从对端自动拉回（水合）。Windows 需先安装 <a href="https://winfsp.dev/" target="_blank" rel="noopener">WinFsp</a>，macOS 需 macFUSE，Linux 需 FUSE。未安装驱动时 asuan 会提示并跳过挂载，不影响普通同步。</div>
     </div>
 
     <div class="fcard">
@@ -352,6 +364,7 @@ function fillForm(c){
   $('f-name').value = c.name||'';
   $('f-webbind').value = (c.web&&c.web.bind)||'127.0.0.1:18084';
   $('f-guibind').value = (c.syncthing&&c.syncthing.gui_bind)||'127.0.0.1:8384';
+  $('f-pmount').value = (c.placeholder&&c.placeholder.mount)||'';
   const st=(c.stealth)||{};
   $('f-tcpport').value = st.tcp_port||0;
   $('f-allownets').value = (st.allowed_networks||[]).join(', ');
@@ -387,6 +400,8 @@ function collectForm(){
   c.remote.endpoint = $('f-rendpoint').value.trim();
   c.remote.limit_kbps = Math.max(0, Number($('f-rlimit').value)||0);
   c.remote.lan_full_speed = $('f-rlanfull').checked;
+  c.placeholder = c.placeholder||{};
+  c.placeholder.mount = $('f-pmount').value.trim();
   c.peers = [...document.querySelectorAll('#peers-edit tr')].map(tr=>{
     const i=tr.dataset.i;
     return {
@@ -504,6 +519,29 @@ async function act(kind,folder){
   if(d.ok){ toast(`${verb}成功`, 'ok'); setTimeout(status,1500); }
   else toast(`${verb}失败：${d.error||''}`,'err');
 }
+
+// 批量释放/水合全部文件夹（并发 3 个，逐个汇总结果）。
+async function actAll(kind){
+  const fs=(data&&data.folders)||[];
+  if(!fs.length){ toast('没有可操作的文件夹','err'); return; }
+  const verb=kind==='release'?'释放':'水合';
+  if(!confirm(`确定${verb}全部 ${fs.length} 个文件夹？\n\n释放：删除本地实体不传播，对端保留。\n水合：从对端重新拉回全部内容。`)) return;
+  $('rel-all').disabled=true; $('hyd-all').disabled=true;
+  try{
+    const d=await post('/api/'+kind+'-many',JSON.stringify({folders:fs.map(f=>f.id)}));
+    if(d.ok&&d.results){
+      const okN=d.results.filter(r=>r.ok).length;
+      const bad=d.results.filter(r=>!r.ok);
+      toast(`${verb}完成：成功 ${okN}/${d.results.length}`+(bad.length?`，失败：${bad.map(b=>b.folder).join(', ')}`:'') , bad.length?'err':'ok');
+    } else {
+      toast(`${verb}失败：${d.error||'未知错误'}`,'err');
+    }
+  }catch(e){ toast(`${verb}失败：${e.message}`,'err'); }
+  $('rel-all').disabled=false; $('hyd-all').disabled=false;
+  setTimeout(status,2000);
+}
+$('rel-all').onclick=()=>actAll('release');
+$('hyd-all').onclick=()=>actAll('hydrate');
 
 // 按相对路径释放/水合单文件或子目录（空路径=整个文件夹）。
 async function actPath(kind,folder){

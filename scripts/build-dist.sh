@@ -121,7 +121,10 @@ asuan 快速开始
 5. 防火墙弹窗(可选规避): 首次运行 syncthing 弹「Windows Defender 已阻止」时,
    勾选「专用网络」→「允许访问」即可一次放行;
    或以管理员运行一次 `asuan firewall add` 预置规则(仅放行同步端口,不暴露程序路径)。
-6. 停止: asuan stop  (托盘右键菜单也可退出)
+6. 开机自启(可选,免管理员): `asuan autostart on` (登录后隐藏窗口自动启动)
+7. 占位符按需拉取(可选): 编辑配置 placeholder.mount 指定挂载点,
+   Windows 需先安装 WinFsp(https://winfsp.dev/),未安装时会提示并跳过。
+8. 停止: asuan stop  (托盘右键菜单也可退出)
 设备交换: 每端 asuan status 显示的设备 ID 填入其他端的 peers。
 QS
 

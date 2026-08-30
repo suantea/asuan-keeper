@@ -63,7 +63,7 @@ cp -r "$ROOT/cmd" "$ROOT/internal" "$ROOT/go.mod" "$ROOT/go.sum" "$ROOT/third_pa
 
 # ---------- 2. 构建 asuan ----------
 echo "==> 构建 asuan (GOOS=$GOOS GOARCH=$GOARCH)"
-(cd "$SRC" && CGO_ENABLED="${CGO_ENABLED:-0}" GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags="-s -w" -o "$TMP/asuan$EXE" ./cmd/asuan)
+(cd "$SRC" && CGO_ENABLED="${CGO_ENABLED:-0}" GOOS="$GOOS" GOARCH="$GOARCH" go build -tags cgofuse -ldflags="-s -w" -o "$TMP/asuan$EXE" ./cmd/asuan)
 
 # ---------- 3. 下载并解压 syncthing ----------
 ST_FILE="syncthing-${TARGET_OS}-${TARGET_ARCH}-${ST_VERSION}${EXT}"

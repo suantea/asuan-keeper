@@ -1,7 +1,11 @@
+//go:build cgofuse
+
 package placeholder
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -171,7 +175,7 @@ func (fs *PlaceholderFS) Read(path string, buff []byte, ofst int64, fh uint64) i
 	}
 	defer f.Close()
 	n, err := f.ReadAt(buff, ofst)
-	if err != nil && err.Error() != "EOF" {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return -fuse.EIO
 	}
 	return n

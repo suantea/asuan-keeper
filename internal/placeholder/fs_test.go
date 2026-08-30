@@ -1,3 +1,5 @@
+//go:build cgofuse
+
 package placeholder
 
 import (

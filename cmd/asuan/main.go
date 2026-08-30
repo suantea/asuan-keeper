@@ -501,13 +501,15 @@ func cmdEngine(configPath string) error {
 }
 
 func cmdEngineUpdate(configPath string, args []string) error {
+	fs := flag.NewFlagSet("engine-update", flag.ContinueOnError)
+	want := fs.String("sha256", "", "校验下载包的 SHA256（推荐，取自官方 SHA256SUMS）")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
 	cfg, _ := loadOrDie(configPath)
 	m := syncthing.New(cfg, exeDir())
-	version := ""
-	if len(args) > 1 {
-		version = args[1]
-	}
-	v, err := m.DownloadAndUpdate(version)
+	version := fs.Arg(0)
+	v, err := m.DownloadAndUpdate(version, *want)
 	if err != nil {
 		return err
 	}

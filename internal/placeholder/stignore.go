@@ -15,10 +15,16 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // StIgnoreFile 是 Syncthing 文件夹忽略规则文件名。
 const StIgnoreFile = ".stignore"
+
+// stIgnoreMu 串行化同进程内对 .stignore 的读-改-写（例如 web 控制台的
+// hydrate-many 并发 3 路同时 RemoveRules，会互相覆盖规则）。跨进程
+// （CLI 与控制台同时操作同一文件夹）仍需使用者自行避免。
+var stIgnoreMu sync.Mutex
 
 // ReleaseRule 是文件夹级释放规则：匹配全部条目并忽略删除
 // （本地删除不传播、对端内容不受影响、本地不重新拉回）。
@@ -105,6 +111,8 @@ func IsPathReleased(dir, relPath string, isDir bool) (bool, error) {
 
 // AddRules 追加规则（已存在则跳过），保持原有规则顺序。
 func AddRules(dir string, add []string) error {
+	stIgnoreMu.Lock()
+	defer stIgnoreMu.Unlock()
 	rules, err := ReadStIgnore(dir)
 	if err != nil {
 		return err
@@ -119,6 +127,8 @@ func AddRules(dir string, add []string) error {
 
 // RemoveRules 移除指定规则（文件夹级 (?d)* 或单路径 (?d)/...）。
 func RemoveRules(dir string, remove []string) error {
+	stIgnoreMu.Lock()
+	defer stIgnoreMu.Unlock()
 	rules, err := ReadStIgnore(dir)
 	if err != nil {
 		return err

@@ -3,6 +3,27 @@
 > 本文件按时间倒序记录每次发布/功能变更，便于后续检查与回溯。
 > 发布触发：`git tag vX.Y.Z && git push origin vX.Y.Z` → GitHub Actions 自动构建+发布。
 
+## 2026-08-30（未发版）
+
+- **build: 占位符虚拟层拆分为 `-tags cgofuse` 可选构建 + 新增三平台 CI 测试**
+  - `internal/placeholder/fs.go`（cgofuse/FUSE 实现）挂 `cgofuse` build tag，新增 `fs_nofuse.go` 桩：
+    无 FUSE 头文件的机器（如未装 macFUSE 的 macOS）上 `go build ./...` / `go test ./...`
+    不再失败，release/hydrate/列表/缓存等非挂载功能照常编译测试。
+  - 发行构建（`scripts/build-dist.sh`、hub Dockerfile）统一加 `-tags cgofuse`，包含真实虚拟层。
+  - 新增 `.github/workflows/test.yml`：ubuntu/macos/windows 三平台 push/PR 跑构建与测试
+    （此前只有 tag 触发的 release 构建，测试从未在 CI 跑过）。
+- **feat(syncthing): 引擎更新完整性校验 + 下载加固**
+  - `asuan engine-update` 新增 `--sha256`：下载包按官方 SHA256SUMS 校验，失败不触碰现有引擎；
+    `ASUAN_ENGINE_BASE` 镜像本身不可信，此前下载后无任何校验即替换二进制。
+  - `downloadFile` 弃用裸 `http.Get`：加超时客户端与 512MB 大小上限，异常响应不再可能写满磁盘。
+- **fix(placeholder): `.stignore` 读改写加锁 + FUSE Read 的 EOF 判断修正**
+  - `AddRules`/`RemoveRules` 包内互斥锁：控制台 hydrate-many 并发 3 路同时改规则会互相覆盖；
+    （跨进程并发仍需使用者自行避免。）
+  - `fs.go` 的 EOF 判断从字符串比较改为 `errors.Is(err, io.EOF)`。
+- **docs: README 重写**——补「它是怎么工作的」架构说明（编排器 + sidecar + `(?d)` 释放机制）、
+  澄清单一二进制（NAS hub = 同一二进制的 Docker 化运行，此前"两个入口"的说法已过时）、
+  新增开发与测试章节（构建 tag、CI 说明）、`engine-update --sha256` 用法。
+
 ## 2026-08-17（未发版，已推 AtomGit main）
 
 - **fix(syncthing): 相对 bin 路径解析为绝对路径（修复 "cannot run executable found relative to current directory"）**
@@ -50,9 +71,10 @@
   - `asuan init` 各端开箱一致使用 44312；folders 支持自定义 versioning（回收站/分层）与 max_conflicts。
 - **feat(placeholder): 占位符目录列表增加 TTL 缓存**（`196e702`）
   - 大目录浏览不再反复打 syncthing REST API，浏览延迟显著下降。
-- **hub 配置中心**（`daaf30d` / `c1db38f` / `8f188ad`）
-  - `GET /v1/sync-config`（Bearer token 鉴权）+ 客户端 `asuan sync-config` 一键拉取合并网络配置。
-- **文档**：MAC.md / hub README / asuan.example.json / QNAP 部署教程（deploy/QNAP-deploy.md）。
+- **文档**：MAC.md / hub README / asuan.example.json。
+
+> 勘误：本文件旧版 2026-08-14 条目曾列出「hub 配置中心 `GET /v1/sync-config` + `asuan sync-config`」
+> 与「QNAP 部署教程（deploy/QNAP-deploy.md）」——经核对代码库中均不存在（未合并或已回退），已移除。
 
 ## 更早记录
 
@@ -60,7 +82,10 @@
 - **发布流水线（GitHub Actions）**：`v*` tag 或手动触发 → windows-amd64/arm64 + linux-amd64 → GitHub Releases → Docker Hub `suantea/asuan-keeper:latest` + `:vX.Y.Z`（已验证 v2.0.2）。
 - **Docker 镜像**：`suantea/asuan-keeper`，含 deploy/hub/docker-compose*.yaml（本地构建/完全版/精简版）。
 
-## 已知待办（详见项目进度笔记）
+## 已知待办
 
-- QNAP 部署收尾：重建镜像（托盘修复 + debian-slim 运行基础）→ 上传 → 重建容器 → 验证 18084 可达。
-- 连接白名单（peers + allowedNetworks）、Web 控制台可选 token、开机自启、占位符虚拟层（WinFsp）落地。
+- 自动释放策略：磁盘剩余水位 / 文件年龄触发占位符 auto-release（blocks: release/hydrate 原语已就绪）。
+- 虚拟层水合去重：并发打开同一文件合并为一次拉取；水合等待中加入文件大小一致性校验（syncthing 落盘经临时文件，存在读到半截内容的窗口）。
+- `.stignore` 跨进程互斥（CLI 与控制台同时操作同一文件夹）。
+- 引擎校验和清单内置（当前 `--sha256` 为手动提供）。
+- QNAP 部署收尾与实机验证清单（见 README）逐项勾选。

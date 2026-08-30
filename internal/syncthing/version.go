@@ -9,6 +9,8 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +18,17 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
+
+// engineHTTPClient 带超时的下载客户端：引擎包几十 MB，总时长给足，
+// 但连接/响应头阶段卡死必须能超时退出（裸 http.Get 没有任何超时）。
+var engineHTTPClient = &http.Client{
+	Timeout: 15 * time.Minute,
+}
+
+// maxEngineArchiveSize 引擎压缩包大小上限（防御性：异常响应不应写满磁盘）。
+const maxEngineArchiveSize = 512 << 20
 
 // 版本对照说明：
 //   - 支持"跟随引擎升级"：引擎是独立二进制，asuan 只依赖其 REST API 与配置格式，
@@ -60,7 +72,7 @@ func (m *Manager) EngineCheck() (*EngineInfo, error) {
 
 // engineDownload 下载并解压指定版本引擎到临时目录，返回解压后二进制路径。
 // 官方发行包名：syncthing-<os>-<arch>-<version>.zip（Windows/macOS）或 .tar.gz（Linux）。
-func (m *Manager) engineDownload(version string) (string, error) {
+func (m *Manager) engineDownload(version, expectedSHA256 string) (string, error) {
 	arch := runtime.GOARCH
 	goos := runtime.GOOS
 	osKey := goos
@@ -89,6 +101,13 @@ func (m *Manager) engineDownload(version string) (string, error) {
 	archivePath := filepath.Join(tmp, "engine"+ext)
 	if err := downloadFile(url, archivePath); err != nil {
 		return "", fmt.Errorf("下载引擎 %s 失败: %w", version, err)
+	}
+	// 完整性校验：调用方显式提供期望值时强制校验（推荐从官方 SHA256SUMS
+	// 获取）；镜像（ASUAN_ENGINE_BASE）本身不可信，不做校验等于裸奔。
+	if expectedSHA256 != "" {
+		if err := verifyFileSHA256(archivePath, expectedSHA256); err != nil {
+			return "", fmt.Errorf("引擎包校验失败: %w", err)
+		}
 	}
 
 	var exePath string
@@ -123,13 +142,15 @@ func exeSuffix() string {
 	return ""
 }
 
-// DownloadAndUpdate 下载指定版本引擎并替换当前引擎二进制。
-// 执行后会保留 .bak 备份；替换成功后若引擎本在运行会重启。
-func (m *Manager) DownloadAndUpdate(version string) (string, error) {
+// DownloadAndUpdate 下载指定版本引擎并替换当前引擎二进制（保留 .bak 备份）。
+// expectedSHA256 非空时对下载包做完整性校验（推荐，官方 SHA256SUMS 提供）；
+// 校验失败不触碰现有引擎。替换前请先 `asuan stop`——运行中替换在 Windows
+// 上可能因文件占用失败。
+func (m *Manager) DownloadAndUpdate(version, expectedSHA256 string) (string, error) {
 	if version == "" {
 		version = CurrentEngineVersion
 	}
-	newBin, err := m.engineDownload(version)
+	newBin, err := m.engineDownload(version, expectedSHA256)
 	if err != nil {
 		return "", err
 	}
@@ -143,9 +164,9 @@ func (m *Manager) DownloadAndUpdate(version string) (string, error) {
 	return version, nil
 }
 
-// downloadFile 下载到本地文件。
+// downloadFile 下载到本地文件（带超时与大小上限）。
 func downloadFile(url, dest string) error {
-	resp, err := http.Get(url)
+	resp, err := engineHTTPClient.Get(url)
 	if err != nil {
 		return err
 	}
@@ -158,8 +179,32 @@ func downloadFile(url, dest string) error {
 		return err
 	}
 	defer f.Close()
-	_, err = io.Copy(f, resp.Body)
-	return err
+	n, err := io.Copy(f, io.LimitReader(resp.Body, maxEngineArchiveSize))
+	if err != nil {
+		return err
+	}
+	if n >= maxEngineArchiveSize {
+		return fmt.Errorf("下载超过大小上限 %d MB，疑似异常响应", maxEngineArchiveSize>>20)
+	}
+	return nil
+}
+
+// verifyFileSHA256 校验文件内容与期望的 hex SHA256 一致（大小写不敏感）。
+func verifyFileSHA256(path, want string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	if !strings.EqualFold(got, strings.TrimSpace(want)) {
+		return fmt.Errorf("SHA256 不匹配：期望 %s，实际 %s", strings.ToLower(want), got)
+	}
+	return nil
 }
 
 // extractZip 解压 zip，返回其中可执行文件（不含 .exe 后缀名）的路径。

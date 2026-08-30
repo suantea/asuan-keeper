@@ -14,7 +14,7 @@ COPY cmd ./cmd
 # go.mod 里 replace github.com/getlantern/systray => ./third_party/systray，
 # 构建阶段必须把 third_party 一起复制进去
 COPY third_party ./third_party
-RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o /out/asuan ./cmd/asuan
+RUN CGO_ENABLED=1 go build -tags cgofuse -ldflags="-s -w" -o /out/asuan ./cmd/asuan
 
 FROM debian:bookworm-slim
 # 运行阶段用 glibc 基础（asuan 是 CGO 动态链接 glibc 二进制，官方 syncthing

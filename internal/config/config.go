@@ -49,6 +49,19 @@ type Remote struct {
 // 运行时需 WinFsp（Windows）/ macFUSE（macOS）/ FUSE（Linux）。
 type Placeholder struct {
 	Mount string `json:"mount"` // 虚拟层挂载点目录（空=不启用）
+
+	// AutoRelease 自动释放策略（默认关闭）：磁盘剩余空间低于 min_free_gb
+	// 时，把修改时间早于 age_days 的本地文件批量释放为占位符（本地删除
+	// 不传播，对端保留）。见 internal/placeholder/autorelease.go。
+	AutoRelease *AutoRelease `json:"auto_release,omitempty"`
+}
+
+// AutoRelease 自动释放策略参数。
+type AutoRelease struct {
+	Enabled         bool `json:"enabled"`
+	MinFreeGB       int  `json:"min_free_gb"`      // 磁盘剩余低于此 GB 数触发释放
+	AgeDays         int  `json:"age_days"`         // 只释放修改时间早于该天数的文件
+	IntervalMinutes int  `json:"interval_minutes"` // 周期扫描间隔分钟数（默认 30，最小 5）
 }
 
 // Web 内置网页控制台。

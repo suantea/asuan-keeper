@@ -5,6 +5,17 @@
 
 ## 2026-08-30（未发版）
 
+- **feat(placeholder): 自动释放策略（auto-release）**
+  - config 新增 `placeholder.auto_release {enabled, min_free_gb, age_days, interval_minutes}`：
+    `asuan run` 周期扫描（默认 30 分钟，最小 5），磁盘剩余低于 `min_free_gb` 时把
+    修改时间早于 `age_days` 的冷文件按「最旧优先」批量释放为占位符，补足水位缺口
+    即停；新增 `asuan auto-release` 手动立即执行。
+  - 实现为「计划/执行」两层：`planAutoRelease` 纯逻辑可测（年龄窗口、已释放规则
+    命中、`.stfolder/.stversions/.stignore` 永不触碰、最旧优先、字节预算），`Sweep`
+    执行时严格保持「先写规则 → 再删本地实体 → 每文件夹一次 Scan」的顺序契约
+    （顺序错了删除就会传播到对端）；引擎重扫失败如实上抛。
+  - 磁盘剩余空间查询按平台分文件（unix Statfs / windows GetDiskFreeSpaceEx）。
+
 - **build: 占位符虚拟层拆分为 `-tags cgofuse` 可选构建 + 新增三平台 CI 测试**
   - `internal/placeholder/fs.go`（cgofuse/FUSE 实现）挂 `cgofuse` build tag，新增 `fs_nofuse.go` 桩：
     无 FUSE 头文件的机器（如未装 macFUSE 的 macOS）上 `go build ./...` / `go test ./...`

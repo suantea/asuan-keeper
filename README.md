@@ -30,6 +30,7 @@ asuan 是一个围绕 [Syncthing](https://syncthing.net/) sidecar 引擎的**编
 
 - 局域网优先同步，NAS 作为常驻中转节点（全量内容 + 30 天回收站）
 - 占位符释放/水合：文件夹级与单文件/单目录级，本地空间按需回收
+- **自动释放策略**（`placeholder.auto_release`）：磁盘剩余低于 `min_free_gb` 时，周期把修改时间早于 `age_days` 的冷文件按「最旧优先」批量释放为占位符，直到补足水位缺口——本地删除不传播，对端内容保留
 - 占位符虚拟层：挂载后"双击水合"（Windows/WinFsp · macOS/macFUSE · Linux/FUSE）
 - 引擎隐身化：消除 sidecar 引擎联网特征（关发现/中继/NAT/UPnP、自定义端口、改设备名）
 - 连接白名单：`stealth.allowed_networks` 走系统防火墙 remoteip，设备列表收敛为本机 + 已声明 peers
@@ -59,6 +60,7 @@ asuan 是一个围绕 [Syncthing](https://syncthing.net/) sidecar 引擎的**编
 asuan init|run|status|stop|config      基础生命周期
 asuan release <folder> [relpath]       释放（删本地实体不传播，对端保留）
 asuan hydrate <folder> [relpath]       水合（移除规则，从对端拉回）
+asuan auto-release                     立即执行一轮自动释放（平时 run 周期触发）
 asuan engine|engine-update             引擎版本说明 / 更新（--sha256 可选校验）
 asuan firewall <status|add|remove>     Windows 防火墙规则管理
 asuan autostart <status|on|off>        开机自启（Windows，HKCU）
@@ -175,9 +177,8 @@ CI：`.github/workflows/test.yml` 在 ubuntu/macos/windows 三个平台跑 `go b
 
 ## 后续候选
 
-- 自动释放策略（磁盘剩余水位 / 文件年龄触发的占位符 auto-release）
-- 虚拟层水合去重（并发打开同一文件合并为一次拉取）与水合完成前的文件大小校验
 - 引擎校验和清单内置（当前 `--sha256` 为手动提供）
+- 自动释放的控制台状态卡片（当前以日志行输出）
 - 安装包分发
 
 ## 许可与声明

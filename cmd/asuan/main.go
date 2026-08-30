@@ -56,7 +56,7 @@ func loadOrDie(path string) (*config.Config, string) {
 func main() {
 	configPath := flag.String("config", "", "配置文件路径（默认 exe 同目录 asuan.json）")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|firewall|autostart|rename|release|hydrate>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "用法: %s [-config 路径] <init|run|status|stop|config|engine|engine-update|firewall|autostart|rename|release|hydrate|auto-release>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -92,6 +92,8 @@ func main() {
 		err = cmdRelease(*configPath, flag.Args())
 	case "hydrate":
 		err = cmdHydrate(*configPath, flag.Args())
+	case "auto-release":
+		err = cmdAutoRelease(*configPath)
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -163,6 +165,33 @@ func cmdRun(configPath string) error {
 		return fmt.Errorf("网页控制台启动失败: %w", err)
 	}
 	fmt.Printf("asuan 同步运行中 (设备 %s, GUI %s, Web %s)\n", cfg.Name, cfg.Syncthing.GUIBind, cfg.Web.Bind)
+
+	// 自动释放策略（可选）：周期扫描磁盘水位，把超龄冷文件批量释放为
+	// 占位符（本地删除不传播，对端保留）。
+	if ar := cfg.Placeholder.AutoRelease; ar != nil && ar.Enabled {
+		interval := time.Duration(ar.IntervalMinutes) * time.Minute
+		if interval < 5*time.Minute {
+			interval = 5 * time.Minute
+		}
+		go func(minFreeGB, ageDays int) {
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for range ticker.C {
+				results := placeholder.Sweep(cfg, placeholder.AutoReleaseOptions{
+					MinFreeBytes: uint64(minFreeGB) << 30,
+					Age:          time.Duration(ageDays) * 24 * time.Hour,
+				}, placeholder.DiskFree, m.Scan)
+				for _, r := range results {
+					switch {
+					case r.Err != nil:
+						fmt.Printf("⚠ 自动释放 %s: %v\n", r.FolderID, r.Err)
+					case r.Released > 0:
+						fmt.Printf("✓ 自动释放 %s: %d 个文件，约 %d MB\n", r.FolderID, r.Released, r.FreedBytes>>20)
+					}
+				}
+			}
+		}(ar.MinFreeGB, ar.AgeDays)
+	}
 
 	// 系统托盘：单击→查看同步进度，双击→打开配置界面，右键→菜单（退出/暂停-同步/打开控制台）。
 	// Windows/macOS 均为托盘形态；Linux/NAS 无显示环境跳过（systray 初始化
@@ -515,6 +544,35 @@ func cmdEngineUpdate(configPath string, args []string) error {
 	}
 	fmt.Printf("引擎已更新到 %s（旧版本备份为 %s.bak）\n", v, m.Exe)
 	fmt.Println("若同步正在运行，请重启：asuan stop && asuan run")
+	return nil
+}
+
+// cmdAutoRelease 按配置立即执行一轮自动释放（平时由 asuan run 周期触发）。
+// 需引擎 API 在运行（写规则后要触发重扫）。
+func cmdAutoRelease(configPath string) error {
+	cfg, _ := loadOrDie(configPath)
+	ar := cfg.Placeholder.AutoRelease
+	if ar == nil || !ar.Enabled {
+		return fmt.Errorf("自动释放未启用（asuan.json → placeholder.auto_release）")
+	}
+	if ar.MinFreeGB <= 0 || ar.AgeDays <= 0 {
+		return fmt.Errorf("自动释放参数无效：min_free_gb 与 age_days 必须为正")
+	}
+	m := syncthing.New(cfg, exeDir())
+	results := placeholder.Sweep(cfg, placeholder.AutoReleaseOptions{
+		MinFreeBytes: uint64(ar.MinFreeGB) << 30,
+		Age:          time.Duration(ar.AgeDays) * 24 * time.Hour,
+	}, placeholder.DiskFree, m.Scan)
+	for _, r := range results {
+		switch {
+		case r.Err != nil:
+			fmt.Printf("✗ %s: %v\n", r.FolderID, r.Err)
+		case r.Skipped != "":
+			fmt.Printf("· %s: 跳过（%s）\n", r.FolderID, r.Skipped)
+		default:
+			fmt.Printf("✓ %s: 释放 %d 个文件，约 %d MB\n", r.FolderID, r.Released, r.FreedBytes>>20)
+		}
+	}
 	return nil
 }
 

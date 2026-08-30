@@ -3,6 +3,7 @@
 package web
 
 import (
+	"crypto/subtle"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -75,7 +76,9 @@ func (s *Server) requireToken(next http.Handler) http.Handler {
 		if tok == "" {
 			tok = r.URL.Query().Get("token")
 		}
-		if tok != s.cfg.Web.Token {
+		// 常量时间比较：控制台能看到状态与配置，token 逐字节计时侧信道
+		// 虽难利用，但修复成本几乎为零。
+		if subtle.ConstantTimeCompare([]byte(tok), []byte(s.cfg.Web.Token)) != 1 {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"ok":false,"error":"unauthorized: missing or invalid token"}`))

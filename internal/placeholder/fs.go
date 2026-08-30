@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/winfsp/cgofuse/fuse"
 )
@@ -48,6 +49,7 @@ type PlaceholderFS struct {
 	root    string                 // 本地真实目录（水合后文件落盘位置）
 	hydrate func(rel string) error // 水合回调：将 rel 文件从对端拉回本地
 	resolve func(rel string) (string, error) // 虚拟相对路径 → 本地真实绝对路径
+	flights *hydrateFlights                  // 并发打开同一文件的水合去重
 }
 
 // NewPlaceholderFS 创建占位符虚拟层。
@@ -55,7 +57,7 @@ type PlaceholderFS struct {
 // 虚拟层根目录下为多个已释放文件夹时，应通过 SetResolver 提供
 // 虚拟路径 → 真实路径的映射（否则按 root 直接拼接）。
 func NewPlaceholderFS(lister Lister, root string, hydrate func(rel string) error) *PlaceholderFS {
-	return &PlaceholderFS{lister: lister, root: root, hydrate: hydrate}
+	return &PlaceholderFS{lister: lister, root: root, hydrate: hydrate, flights: newHydrateFlights()}
 }
 
 // SetResolver 设置虚拟相对路径 → 本地真实绝对路径的映射函数。
@@ -75,21 +77,6 @@ func (fs *PlaceholderFS) resolvePath(virtRel string) (string, error) {
 // rel 去掉前导 "/" 得到相对路径。
 func rel(path string) string {
 	return strings.TrimPrefix(path, "/")
-}
-
-// splitVirt 把虚拟层相对路径按 "/" 切成 (目录, 文件名)。
-// 虚拟路径统一用 "/" 分隔（macFUSE/FUSE 与 WinFsp-FUSE 均如此），
-// 不能依赖 filepath.Split（Windows 上按 "\\" 切，会切错嵌套路径）。
-func splitVirt(p string) (dir, base string) {
-	p = strings.Trim(p, "/")
-	if p == "" {
-		return "", ""
-	}
-	i := strings.LastIndex(p, "/")
-	if i < 0 {
-		return "", p
-	}
-	return p[:i], p[i+1:]
 }
 
 // Statfs 返回虚拟层基本统计。
@@ -149,14 +136,26 @@ func (fs *PlaceholderFS) Readdir(path string,
 	return 0
 }
 
-// Open 仅允许只读打开（占位符虚拟层不可写）。
+// Open 仅允许只读打开（占位符虚拟层不可写）。打开即触发水合（同一文件
+// 并发去重），并按对端索引的大小等待文件完整落盘，保证 Read 时本地已有
+// 完整实体。
 func (fs *PlaceholderFS) Open(path string, flags int) (int, uint64) {
 	if flags&fuse.O_ACCMODE != fuse.O_RDONLY {
 		return -fuse.EACCES, ^uint64(0)
 	}
-	// 打开即触发水合，保证 Read 时本地已有实体。
 	if fs.hydrate != nil {
-		if err := fs.hydrate(rel(path)); err != nil {
+		relPath := rel(path)
+		real, err := fs.resolvePath(relPath)
+		if err != nil {
+			return -fuse.EIO, ^uint64(0)
+		}
+		wantSize := entrySizeFromLister(fs.lister, relPath)
+		if err := fs.flights.do(real, func() error {
+			if err := fs.hydrate(relPath); err != nil {
+				return err
+			}
+			return waitFileReady(real, wantSize, 30*time.Second)
+		}); err != nil {
 			return -fuse.EIO, ^uint64(0)
 		}
 	}

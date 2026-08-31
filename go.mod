@@ -1,4 +1,4 @@
-module atomgit.com/suantea/asuan-keeper
+module github.com/suantea/asuan-keeper
 
 go 1.26
 

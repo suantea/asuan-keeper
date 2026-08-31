@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
-	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
-	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
+	"github.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/placeholder"
+	"github.com/suantea/asuan-keeper/internal/syncthing"
 )
 
 //go:embed index.html

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
-	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
+	"github.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/syncthing"
 )
 
 // Release 释放文件夹或单路径：仅删本地实体不传播。

@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
-	"atomgit.com/suantea/asuan-keeper/internal/procprio"
+	"github.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/procprio"
 )
 
 type Manager struct {

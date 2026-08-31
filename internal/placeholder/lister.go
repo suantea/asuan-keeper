@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
-	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
+	"github.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/syncthing"
 )
 
 // 目录列表缓存参数：浏览大目录时 Readdir 会被文件管理器反复调用

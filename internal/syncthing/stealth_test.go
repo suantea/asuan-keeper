@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/config"
 )
 
 // fakeConfig 构造最小 /rest/config 响应结构。

@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/config"
 )
 
 // AutoReleaseOptions 一次自动释放的参数。

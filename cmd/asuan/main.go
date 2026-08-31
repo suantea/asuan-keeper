@@ -24,13 +24,13 @@ import (
 	"strings"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/autostart"
-	"atomgit.com/suantea/asuan-keeper/internal/config"
-	"atomgit.com/suantea/asuan-keeper/internal/firewall"
-	"atomgit.com/suantea/asuan-keeper/internal/placeholder"
-	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
-	"atomgit.com/suantea/asuan-keeper/internal/tray"
-	"atomgit.com/suantea/asuan-keeper/internal/web"
+	"github.com/suantea/asuan-keeper/internal/autostart"
+	"github.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/firewall"
+	"github.com/suantea/asuan-keeper/internal/placeholder"
+	"github.com/suantea/asuan-keeper/internal/syncthing"
+	"github.com/suantea/asuan-keeper/internal/tray"
+	"github.com/suantea/asuan-keeper/internal/web"
 )
 
 func exeDir() string {

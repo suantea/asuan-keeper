@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"atomgit.com/suantea/asuan-keeper/internal/config"
+	"github.com/suantea/asuan-keeper/internal/config"
 )
 
 // 自动释放策略的核心保证：

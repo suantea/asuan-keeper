@@ -9,7 +9,7 @@ import (
 
 	"github.com/getlantern/systray"
 
-	"atomgit.com/suantea/asuan-keeper/internal/syncthing"
+	"github.com/suantea/asuan-keeper/internal/syncthing"
 )
 
 // Actions 托盘可执行的动作（由 cmd/asuan 注入，避免本包反向依赖 web 等）。

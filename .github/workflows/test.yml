@@ -18,6 +18,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # Linux 上编译 systray（tray 包）需要 GTK/appindicator 头文件。
+      - name: Install build deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev
       # 不带 -tags cgofuse：占位符虚拟层走 stub（fs_nofuse.go），
       # 保证在没有 FUSE 头文件的环境上 build/test 全绿；
       # 带 FUSE 的真实构建由 release.yml（-tags cgofuse）覆盖。
